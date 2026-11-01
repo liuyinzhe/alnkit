@@ -1,0 +1,4 @@
+query_fragment	query_start	query_end	strand	reference	ref_start	ref_end	block_bp	identity
+insert_alpha	0	1200	-	assembly_a	6400	7600	1200	1.0000
+insert_alpha	0	1200	+	assembly_a	5000	6200	1200	1.0000
+insert_alpha	0	1200	+	assembly_a	7800	9000	1200	1.0000

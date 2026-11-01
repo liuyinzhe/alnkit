@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "alnkit"
+dynamic = ["version"]
+description = "Insertion evidence toolkit for BAM/PAF: breakpoint extraction and standalone plots"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "liuyinzhe" }]
+keywords = ["bioinformatics", "bam", "paf", "structural-variants", "insertion", "visualization"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = ["pysam>=0.22"]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.7"]
+dev = ["pytest>=8", "pytest-cov", "ruff>=0.5", "mypy>=1.8"]
+docs = ["mkdocs-material>=9", "mkdocstrings[python]>=0.24", "mike>=2"]
+
+[project.scripts]
+alnkit = "alnkit.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/liuyinzhe/alnkit"
+Documentation = "https://liuyinzhe.github.io/alnkit/"
+Issues = "https://github.com/liuyinzhe/alnkit/issues"
+Changelog = "https://github.com/liuyinzhe/alnkit/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/alnkit/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/alnkit"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/alnkit",
+    "tests",
+    "docs",
+    "scripts",
+    "mkdocs.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["tests/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# 移植模块：保留原实现写法，避免无意义 diff 破坏“与原脚本逐字节一致”的对账。
+"src/alnkit/plot/tracks.py" = ["UP030", "B905", "E501"]
+"src/alnkit/plot/ribbon.py" = ["UP030", "UP032", "B905", "E501", "SIM108"]
+"src/alnkit/longread/*.py" = ["E501", "UP030", "UP032", "B905", "SIM108", "SIM103", "B007", "F401", "SIM115"]
+"src/alnkit/shortread/*.py" = ["E501", "UP006", "UP009", "UP030", "UP032", "UP035", "UP037", "UP045", "B905", "SIM102", "SIM103", "SIM108", "B007", "B023", "F841", "I001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -ra"
+markers = ["slow: 需要真实测序数据（ALNKIT_TEST_DATA），缺失时 skip"]
+
+[tool.mypy]
+python_version = "3.10"
+# 只对契约层做严格检查；业务模块靠黄金回归
+files = ["src/alnkit/core", "src/alnkit/_docs.py"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true

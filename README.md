@@ -1,0 +1,125 @@
+# alnkit
+
+BAM/PAF 的插入证据工具箱：断点提取 + 独立绘图。
+二代与三代各一条链路，绘图工具可独立使用。
+
+
+## 三条链路
+
+> 示例里的序列名（`target_ref`/`homolog_ref`/`insertA`…）是**占位名**，换成你自己 BAM/FASTA header 里真实存在的名字；`long classify` 会校验并列出可用名。
+
+```bash
+# 三代：参考 → 比对 → 分类 → overlap → 断点/类 → 组装 → 落点
+alnkit ref merge      --reference ref.fa.gz --exog exog/h.fa --exog exog/l.fa --outdir 01_ref
+alnkit align reads    --reference 01_ref/merged_reference.fa --reads input.fastq --outdir 02_align
+alnkit long classify  --bam 02_align/reads_to_merged.sorted.bam --reads input.fastq \
+                      --merged-fai 01_ref/merged_reference.fa.fai --exog insertA --exog insertB \
+                      --outdir 03_classify
+alnkit long graph     --paf 04_overlap/overlaps.paf \
+                      --classification 03_classify/read_classification.tsv --outdir 04_overlap
+alnkit long breakpoints --segments 03_classify/alignment_segments.tsv \
+                      --classification 03_classify/read_classification.tsv \
+                      --overlaps 04_overlap/overlap_edges.tsv --reads 03_classify/related_reads.fastq \
+                      --merged-fai 01_ref/merged_reference.fa.fai --outdir 05_breakpoints
+alnkit long assemble  --classes-dir 05_breakpoints/classes --paf 04_overlap/overlaps.paf \
+                      --outdir 06_assembly
+alnkit long locate    --regions 05_breakpoints/breakpoint_classes.tsv \
+                      --sites 05_breakpoints/breakpoint_sites.tsv --reference-fasta ref.fa \
+                      --exog exog/h.fa --exog exog/l.fa --assembly-dir 06_assembly \
+                      --outdir 07_ribbon
+
+# 二代：BAM → 三张证据表 + 规范位点表
+alnkit short scan     --bam-dir ./bams --query-chr target_ref \
+                      --insert-chrs decoy_ref,homolog_ref,target_ref --merge-window-bp 10 --out-dir out
+
+# 绘图（零上游依赖）
+alnkit plot tracks    --segments-tsv seg.tsv --outdir out --name tracks
+alnkit plot ribbon    --paf aln.paf --reference-name assembly_a --outdir out --name ex4
+```
+
+完整的参数说明见文档站的 **CLI 参考**（由 `--help` 自动生成）。
+>
+> `alnkit long assemble` 修掉了旧实现的非确定性（旧版遍历 `set`，同一输入会随
+> `PYTHONHASHSEED` 漂出不同 `layout.tsv`）；该修复已同步回上游，两边产物逐字节一致。
+> 计划与契约见仓库内 `docs/`。
+
+## 安装
+
+```bash
+pip install alnkit            # 分析链路（核心依赖：pysam）
+pip install "alnkit[plot]"    # 额外装绘图（matplotlib）
+```
+
+外部命令按需安装（不在 wheel 里）：`minimap2`（比对，>= 2.24）、`samtools`（参考索引/BAM，>= 1.16）。
+
+## 快速开始
+
+```bash
+alnkit --help          # 命令总览
+alnkit doctor          # 打印 Python / 依赖 / 外部命令的可用性与版本
+alnkit selftest        # 内置断言（坐标/表契约 + 二代断点口径，不需要输入数据），全绿即环境正常
+```
+
+## 现在能做什么
+
+| 命令 | 作用 | 状态 |
+|---|---|---|
+| `alnkit doctor` | 环境自检：pysam、matplotlib、minimap2、samtools | 可用 |
+| `alnkit selftest` | 坐标换算与表契约断言 | 可用 |
+| `alnkit seg table` | BAM → 比对段表（规范列 / `--columns legacy` 历史 14 列） | 可用 |
+| `alnkit plot tracks` | 单 read 轨道图（BAM / PAF / 段表） | 可用 |
+| `alnkit plot ribbon` | 共线性丝带图（内部比对 / 现成 PAF） | 可用 |
+| `alnkit short scan` | 二代插入断点证据（SR / PESR / DUP）三张表 | 可用 |
+| `alnkit ref merge` | 参考 + 外源 → 合并参考（含 .fai 与 header 表） | 可用 |
+| `alnkit align reads` | reads → 合并参考的 sorted BAM（minimap2 薄封装） | 可用 |
+| `alnkit long classify` | 三代目标 reads 分类 + 接头位点/区域 | 可用 |
+| `alnkit long graph` | read-vs-read overlap 边与连通分量 | 可用 |
+| `alnkit long breakpoints` | 三代断点（S##/G##）+ 共享 reads 合并成类 + 类池 | 可用 |
+| `alnkit long assemble` | 三代每类 junction 局部延伸组装（不输出 layout.tsv） | 可用 |
+| `alnkit long locate` | 三代 50 bp 锚点 + 外源 → 丝带图 + 参考坐标还原 | 可用 |
+
+## 关键约定（写文档和写脚本前必读）
+
+- **坐标**：内部一律 0-based 半开 `[start, end)`；输出列名必须带 `_0based` / `_1based` 后缀；
+  区间展示串一律 1-based 闭区间 `chrom:start-end`。见 `docs/concepts/coordinates.md`。
+- **表是接口**：所有分析先落成 TSV，图从 TSV 出；列的增删受契约测试约束。
+- **退出码**：`0` 成功 / `1` 运行期错误 / `2` 参数或前置校验失败。
+
+## 为什么自带组装器（而不是让你用 hifiasm / miniasm）
+
+`long assemble` 不是通用组装器，它只做一件事：**从 junction read 出发，用 read-vs-read overlap
+把断点两侧往外延伸**，目的是让下游 `long locate` 能把 50 bp 断点锚点比回 contig、还原参考坐标。
+
+在一套多类、每类百余条 HiFi reads 的基准上实测三种方案，
+判据是**下游真正要的东西**：全部断点锚点能否被还原出参考坐标。
+
+| 方案 | 锚点落回 | contig 数 | 总长 | 备注 |
+|---|---|---|---|---|
+| **`alnkit long assemble`** | **全部** | 5 | 137 kb | junction 作种子，天然沿着断点延伸 |
+| hifiasm（每类 reads 各自组装） | 只回落一小部分 | 9 | 1.16 Mb | 通用组装器在重复/嵌合处会断开，锚点正好落在断点缝上 |
+| miniasm（吃 `overlaps.paf`） | **0** | 11 | 0.39 Mb | 只保留覆盖度足够的 tiling path，断点两侧被裁掉 |
+
+结论：**两者都无法替代**，因此保留自带组装器。若你要的是"整段插入的完整序列"而不是"断点验证"，
+hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_assembly/<C>/overlap_extension/contigs.fasta`
+都能用，两者可以并存（先 hifiasm 看全貌，再 `long assemble` 看断点）。
+
+**仍然存在的限制**：本组装器只保证断点附近正确；远离断点的延伸无法验证，
+所以它**不输出逐 read 的布局表**（`layout.tsv` 已移除），只给 contig 序列与统计。
+
+## 已知限制
+
+- **`long assemble` 的组装结果需要复核**。2026-11-01 修掉了一个反链 overlap 落位差
+  `aligned_bp-1` 的坐标 bug（这类数据里相当比例的 overlap 是反链），但独立校验发现：即使修完，
+  `layout.tsv` 里仍有相当一部分 read 的序列与最终 contig 在记录坐标上对不上（逐位一致率约 28%）。
+  该现象在修复前的原始脚本上同样存在，属贪心延伸算法的既有问题，尚未定位。
+  **把 `long assemble` 的 contig 当作“参考级”证据前请自行验证**；`long locate` 的锚点命中与
+  参考坐标还原不受影响（它只用 50 bp 锚点与全 contig 比对）。
+- **`short scan` 的 legacy 三表列名保持历史写法**（`Insert_Position` 等），不要按列名推断基准；
+  要机器可读、基准明确的版本请用同一目录下的 `<sample>.sites.canonical.tsv`
+  （带 `_1based`/`_0based` 后缀，与 legacy 主表按 `(chrom, insert_pos_1based)` 一一对应）。
+- `long locate` 的 PDF 与 `align reads` 的 BAM 不能与其他运行逐字节比较（前者含生成时间，
+  后者 `@PG` 记录命令行含路径）；两者的等价性分别用“大小”与“比对记录 md5”验证。
+
+## 许可
+
+**GPL-3.0-or-later**。见 `LICENSE`。

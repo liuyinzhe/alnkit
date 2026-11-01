@@ -1,0 +1,17 @@
+insert_alpha	1200	0	1200	+	assembly_c	32000	25500	26700	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:P	cm:i:210	s1:i:1185	s2:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	16500	17700	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	15000	16200	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	22500	23700	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	-	assembly_a	23200	6400	7600	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	21000	22200	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_a	23200	5000	6200	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	13500	14700	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	12000	13200	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	18000	19200	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	19500	20700	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_c	32000	24000	25200	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_alpha	1200	0	1200	+	assembly_a	23200	7800	9000	1200	1200	0	NM:i:0	ms:i:1200	AS:i:1200	nn:i:0	tp:A:S	cm:i:210	s1:i:1185	de:f:0	rl:i:0	cg:Z:1200M
+insert_beta	600	0	600	+	assembly_b	15000	9500	10100	600	600	0	NM:i:0	ms:i:600	AS:i:600	nn:i:0	tp:A:P	cm:i:104	s1:i:582	s2:i:582	de:f:0	rl:i:0	cg:Z:600M
+insert_beta	600	0	600	+	assembly_b	15000	8000	8600	600	600	0	NM:i:0	ms:i:600	AS:i:600	nn:i:0	tp:A:S	cm:i:104	s1:i:582	de:f:0	rl:i:0	cg:Z:600M
+insert_beta	600	0	600	+	assembly_b	15000	8750	9350	600	600	0	NM:i:0	ms:i:600	AS:i:600	nn:i:0	tp:A:S	cm:i:104	s1:i:582	de:f:0	rl:i:0	cg:Z:600M
+insert_beta	600	0	600	+	assembly_b	15000	10250	10850	600	600	0	NM:i:0	ms:i:600	AS:i:600	nn:i:0	tp:A:S	cm:i:104	s1:i:582	de:f:0	rl:i:0	cg:Z:600M

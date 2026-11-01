@@ -1,0 +1,66 @@
+name: release
+
+# 发布流程（无 token）：tag v* → 构建 → twine check → Trusted Publishing 上传 PyPI。
+# 前置条件：
+#   * PyPI pending publisher：owner=liuyinzhe repo=alnkit workflow=release.yml environment=pypi
+#   * GitHub Environment 名必须是 pypi（与环境名不一致会拿到 403 invalid-publisher）
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      testpypi:
+        description: "上传到 TestPyPI（需另配 TestPyPI 的 pending publisher）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 校验 tag 与 __version__ 一致
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          python - <<'PY'
+          import os, sys
+          sys.path.insert(0, "src")
+          import alnkit
+          tag = os.environ["GITHUB_REF_NAME"]
+          expected = "v" + alnkit.__version__
+          if tag != expected:
+              sys.exit(f"tag {tag} 与 __version__ {expected} 不一致，先改版本号再打 tag")
+          print(f"版本一致：{tag}")
+          PY
+      - name: 构建
+        run: |
+          python -m pip install -U pip build twine
+          python -m build
+          twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # OIDC：唯一需要的权限，不使用任何 secret
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: 发布到 PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: ${{ inputs.testpypi && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}

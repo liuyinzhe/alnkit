@@ -1,0 +1,245 @@
+"""短读长子命令：``alnkit short scan``（B1）。
+
+参数名、默认值、帮助文本与旧脚本 ``parse_bam.py`` 一一对应；只把 ``--version`` 与
+``--self-test`` 换成了 alnkit 的全局选项。
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from ..shortread import scan
+from ._common import GLOBAL_OPTIONS
+
+
+def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    short = subparsers.add_parser(
+        "short",
+        help="短读长链路（二代插入断点证据）",
+        description="从 BAM 找外源序列插入参考基因组的断点证据（SR / PESR / DUP）。",
+    )
+    short_subparsers = short.add_subparsers(dest="short_command", metavar="<subcommand>")
+    short_subparsers.required = True
+    _add_scan(short_subparsers)
+
+
+def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = subparsers.add_parser(
+        "scan",
+        parents=[GLOBAL_OPTIONS],
+        help="BAM -> 断点证据三张表",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "一条跨越“参考基因组 <-> 外源插入序列”的嵌合比对可定位断点；"
+            "本命令按断点聚合证据（SR / PESR / DUP）。"
+        ),
+        epilog=(
+            "上游 BAM 的比对要求（详见原脚本 README）:\n"
+            "  必须 -Y（补充比对用 soft clip，只从 CIGAR 的 S 取断点）；\n"
+            "  禁止 -M（会把补充比对标成 secondary，证据变少）；\n"
+            "  建议 -a -h 20；比对后不要用 samtools -F 2048 / -F 256 / -q 过滤。\n"
+            "\n示例:\n"
+            "  alnkit short scan --bam-dir ./bam --query-chr target_ref \\\n"
+            "      --insert-chrs decoy_ref,homolog_ref,target_ref \\\n"
+            "      --merge-window-bp 10 --out-dir out\n"
+            "  alnkit short scan --self-test"
+        ),
+    )
+    parser.add_argument(
+        "--bam",
+        action="append",
+        type=Path,
+        default=[],
+        metavar="PATH",
+        help="直接指定 BAM（可重复）。与 --bam-dir 二选一",
+    )
+    parser.add_argument(
+        "--bam-dir",
+        action="store",
+        type=Path,
+        default=Path.cwd(),
+        metavar="DIR",
+        help="扫描 BAM 的目录，默认当前目录",
+    )
+    parser.add_argument(
+        "--bam-glob",
+        action="store",
+        default="*.sorted.bam",
+        metavar="PATTERN",
+        help="在 --bam-dir 下匹配 BAM 的通配符，默认 *.sorted.bam",
+    )
+    parser.add_argument("--no-recursive", action="store_true", help="不递归子目录（默认递归）")
+    parser.add_argument(
+        "--out-dir",
+        action="store",
+        type=Path,
+        default=Path.cwd(),
+        metavar="DIR",
+        help="结果输出目录，默认当前目录",
+    )
+    parser.add_argument(
+        "--sample-name",
+        action="store",
+        default=None,
+        metavar="NAME",
+        help="样本名（输出文件名前缀），默认取 BAM 文件名首个 . 之前的部分",
+    )
+    parser.add_argument(
+        "--query-chr",
+        action="store",
+        default=None,
+        metavar="NAME",
+        help="本次要出结果的外源插入序列名（必填，除非 --self-test）",
+    )
+    parser.add_argument(
+        "--insert-chrs",
+        action="store",
+        default=None,
+        metavar="NAME1,NAME2,...",
+        help="参考序列里全部外源/同源序列名，逗号分隔；默认只含 --query-chr",
+    )
+    parser.add_argument(
+        "--insert-origin-policy",
+        action="store",
+        choices=("owned", "owned-strict", "lenient", "consensus", "legacy"),
+        default="owned",
+        help="共有 read 的区分策略：owned（默认）/owned-strict/lenient/consensus/legacy",
+    )
+    parser.add_argument(
+        "--merge-window-bp",
+        action="store",
+        type=int,
+        default=0,
+        metavar="INT",
+        help="位点窗口合并：相距 <= 该值的断点合并为一个位点，0=不合并（默认）；推荐 10",
+    )
+    parser.add_argument(
+        "--min-mapq",
+        action="store",
+        type=int,
+        default=20,
+        metavar="INT",
+        help="比对质量 <= 该值则丢弃，默认 20",
+    )
+    parser.add_argument(
+        "--max-mismatch",
+        action="store",
+        type=int,
+        default=3,
+        metavar="INT",
+        help="错配数 > 该值则丢弃，默认 3",
+    )
+    parser.add_argument(
+        "--max-softclip-blocks",
+        action="store",
+        type=int,
+        default=1,
+        metavar="INT",
+        help="soft clip 段数 > 该值则丢弃，默认 1",
+    )
+    parser.add_argument(
+        "--min-clip-length",
+        action="store",
+        type=int,
+        default=0,
+        metavar="INT",
+        help="作为断点证据时要求的最小 soft clip 长度，默认 0（不限制）",
+    )
+    parser.add_argument(
+        "--keep-secondary", action="store_true", help="保留 secondary 比对（默认丢弃）"
+    )
+    parser.add_argument(
+        "--mismatch-source",
+        action="store",
+        choices=("nm", "md"),
+        default="nm",
+        help="错配数来源：nm=NM 标签（默认）；md=由 MD 推导（历史行为）",
+    )
+    parser.add_argument(
+        "--on-missing-tag",
+        action="store",
+        choices=("skip", "error"),
+        default="skip",
+        help="缺少 NM/MD 标签时：skip=丢弃该比对（默认）；error=报错",
+    )
+    parser.add_argument(
+        "--no-split-match",
+        action="store_true",
+        help="关闭「目标序列上要求存在等长 split 比对」的校验（默认开启）",
+    )
+    parser.add_argument(
+        "--no-candidate-gate",
+        action="store_true",
+        help="关闭候选 read 闸门（等价 2.4.0 全量逐条处理）；legacy 策略下自动关闭",
+    )
+    parser.add_argument(
+        "--no-duplicate-filter",
+        action="store_true",
+        help="保留被 markdup 标记为重复的 read 作为证据（默认剔除，只写 dup 列）",
+    )
+    parser.add_argument(
+        "--require-dup-flags",
+        action="store_true",
+        help="BAM 里没有任何 FLAG 0x400（未做 markdup）时报错退出（退出码 2）",
+    )
+    parser.add_argument(
+        "--bam-threads",
+        action="store",
+        type=int,
+        default=1,
+        metavar="INT",
+        help="BAM 解压线程数，默认 1；大文件可调到 2-4",
+    )
+    parser.add_argument(
+        "--legacy-coordinates",
+        action="store_true",
+        help="使用历史的 M 块选取规则（取最后一个 M 块）",
+    )
+    parser.add_argument(
+        "--legacy-profile",
+        action="store_true",
+        help="一键复现历史结果（= legacy 坐标 + legacy 归属 + 由 MD 推导错配）",
+    )
+    parser.add_argument("--self-test", action="store_true", help="只跑内置自检（不读 BAM）")
+    parser.set_defaults(handler=run_scan)
+
+
+def run_scan(args: argparse.Namespace) -> int:
+    if args.self_test:
+        scan.run_self_test()
+        return 0
+    settings = scan.ScanSettings(
+        bam=tuple(args.bam),
+        bam_dir=args.bam_dir,
+        bam_glob=args.bam_glob,
+        no_recursive=args.no_recursive,
+        out_dir=args.out_dir,
+        sample_name=args.sample_name,
+        query_chr=args.query_chr,
+        insert_chrs=args.insert_chrs,
+        insert_origin_policy=args.insert_origin_policy,
+        merge_window_bp=args.merge_window_bp,
+        min_mapq=args.min_mapq,
+        max_mismatch=args.max_mismatch,
+        max_softclip_blocks=args.max_softclip_blocks,
+        min_clip_length=args.min_clip_length,
+        keep_secondary=args.keep_secondary,
+        mismatch_source=args.mismatch_source,
+        on_missing_tag=args.on_missing_tag,
+        no_split_match=args.no_split_match,
+        no_candidate_gate=args.no_candidate_gate,
+        no_duplicate_filter=args.no_duplicate_filter,
+        require_dup_flags=args.require_dup_flags,
+        bam_threads=args.bam_threads,
+        legacy_coordinates=args.legacy_coordinates,
+        legacy_profile=args.legacy_profile,
+        log_level=args.log_level,
+        quiet=args.quiet,
+    )
+    result = scan.run(settings)
+    print(
+        f"完成：{len(result['bams'])} 个 BAM，"
+        f"query={result['query_chr']}，输出目录 {result['out_dir']}"
+    )
+    return 0

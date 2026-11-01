@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: 安装
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev,docs,plot]"
+      - name: lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: 类型检查（核心层）
+        run: mypy
+      - name: 单元测试
+        run: python -m pytest
+      - name: 生成物是否最新
+        run: |
+          python scripts/gen_table_docs.py --check
+          python scripts/gen_cli_docs.py --check
+      - name: 文档构建
+        run: mkdocs build --strict
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 构建并检查元数据（不发布）
+        run: |
+          python -m pip install -U pip build twine
+          python -m build
+          twine check dist/*

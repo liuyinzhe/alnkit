@@ -1,0 +1,59 @@
+site_name: alnkit
+site_description: BAM/PAF 的插入证据工具箱：断点提取 + 独立绘图
+site_url: https://liuyinzhe.github.io/alnkit/
+repo_url: https://github.com/liuyinzhe/alnkit
+repo_name: liuyinzhe/alnkit
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: 深色
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: 浅色
+
+nav:
+  - 首页: index.md
+  - 安装: install.md
+  - 快速开始: quickstart.md
+  - 约定:
+      - 坐标: concepts/coordinates.md
+      - 表契约: concepts/tables.md
+  - CLI 参考:
+      - cli/index.md
+      - doctor: cli/alnkit-doctor.md
+      - selftest: cli/alnkit-selftest.md
+      - ref merge: cli/alnkit-ref-merge.md
+      - align reads: cli/alnkit-align-reads.md
+      - seg table: cli/alnkit-seg-table.md
+      - plot tracks: cli/alnkit-plot-tracks.md
+      - plot ribbon: cli/alnkit-plot-ribbon.md
+      - short scan: cli/alnkit-short-scan.md
+      - long classify: cli/alnkit-long-classify.md
+      - long graph: cli/alnkit-long-graph.md
+      - long breakpoints: cli/alnkit-long-breakpoints.md
+      - long assemble: cli/alnkit-long-assemble.md
+      - long locate: cli/alnkit-long-locate.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+plugins:
+  - search
+
+strict: true

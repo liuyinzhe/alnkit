@@ -1,0 +1,42 @@
+name: docs
+
+# 文档站部署：push main / 打 tag 时把 mkdocs 构建结果推到 gh-pages 分支。
+# 前置：仓库 Settings -> Pages -> Source = "Deploy from a branch"，分支 gh-pages / root。
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # mkdocs gh-deploy 需要往 gh-pages 分支推
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # gh-deploy 需要完整历史才能正确提交
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装文档依赖
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[docs,plot]"
+
+      - name: 生成物必须最新（与 CI 同一道门）
+        run: |
+          python scripts/gen_table_docs.py --check
+          python scripts/gen_cli_docs.py --check
+
+      - name: 构建并推送 gh-pages
+        run: mkdocs gh-deploy --force --no-history

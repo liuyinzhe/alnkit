@@ -1,0 +1,9 @@
+chrom	chrom_length	ref_pos_start	ref_pos_end	read_name	read_pos_start	read_pos_end	strand	mapping_quality	is_secondary	is_supplementary	ref_aln_len	read_aln_len	simplified_cigar
+chr1	2000	100	200	readA	0	100	+	60	0	0	100	100	100M50S
+exog_a	400	0	50	readA	100	150	+	60	0	0	50	50	100S50M
+chr1	2000	400	540	readB	0	140	-	60	0	0	140	140	60S140M
+exog_a	400	100	240	readB	0	140	-	60	0	0	140	140	60S140M
+chr1	2000	800	1000	readC	0	170	+	60	0	0	200	170	120M30N50M20S
+chr1	2000	900	1080	readC	20	200	+	60	1	0	180	180	20S180M
+exog_a	400	0	180	readC	20	200	+	60	0	0	180	180	20S180M
+chr1	2000	1200	1400	readD	0	200	+	60	0	1	200	200	200M
