@@ -17,7 +17,7 @@ def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
     short = subparsers.add_parser(
         "short",
         help="短读长链路（二代插入断点证据）",
-        description="从 BAM 找外源序列插入参考基因组的断点证据（SR / PESR / DUP）。",
+        description="从 BAM 里找插入断点的证据（SR / PESR / DUP）。",
     )
     short_subparsers = short.add_subparsers(dest="short_command", metavar="<subcommand>")
     short_subparsers.required = True

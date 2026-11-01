@@ -21,7 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     """构建完整命令树（供 CLI 与文档生成共用）。"""
     parser = argparse.ArgumentParser(
         prog="alnkit",
-        description="比对结果中外源插入（及未来结构变异）的证据提取与可视化工具集",
+        description="BAM/PAF 的插入证据工具箱：断点提取 + 独立绘图",
         epilog="例子：\n  alnkit doctor   |   alnkit selftest   |   alnkit <command> --help",
     )
     parser.add_argument("--version", action="version", version=f"alnkit {__version__}")
