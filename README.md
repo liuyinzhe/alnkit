@@ -44,7 +44,7 @@ alnkit long breakpoints --segments 03_classify/alignment_segments.tsv \
                       --overlaps 04_overlap/overlap_edges.tsv --reads 03_classify/related_reads.fastq \
                       --merged-fai merged.fa.fai --outdir 05_breakpoints
 alnkit long assemble  --classes-dir 05_breakpoints/classes --paf 04_overlap/overlaps.paf \
-                      --outdir 06_assembly
+                      --outdir 06_assembly        # 额外写 assembly_support.tsv（需 minimap2）
 alnkit long locate    --regions 05_breakpoints/breakpoint_classes.tsv \
                       --sites 05_breakpoints/breakpoint_sites.tsv --reference-fasta ref.fa \
                       --exog exog/h.fa --exog exog/l.fa --assembly-dir 06_assembly \
@@ -95,7 +95,7 @@ alnkit selftest        # 内置断言（坐标/表契约 + 二代断点口径，
 | `alnkit long classify` | 三代目标 reads 分类 + 接头位点/区域 | 可用 |
 | `alnkit long graph` | read-vs-read overlap 边与连通分量 | 可用 |
 | `alnkit long breakpoints` | 三代断点（S##/G##）+ 共享 reads 合并成类 + 类池 | 可用 |
-| `alnkit long assemble` | 三代每类 junction 局部延伸组装（不输出 layout.tsv） | 可用 |
+| `alnkit long assemble` | 三代每类 junction 局部延伸组装 + 组装支撑度报告 | 可用 |
 | `alnkit long locate` | 三代 50 bp 锚点 + 外源 → 丝带图 + 参考坐标还原 | 可用 |
 
 ## 关键约定（写文档和写脚本前必读）
@@ -129,11 +129,15 @@ hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_as
 ## 已知限制
 
 - **`long assemble` 的组装结果需要复核**。2026-11-01 修掉了一个反链 overlap 落位差
-  `aligned_bp-1` 的坐标 bug（这类数据里相当比例的 overlap 是反链），但独立校验发现：即使修完，
-  `layout.tsv` 里仍有相当一部分 read 的序列与最终 contig 在记录坐标上对不上（逐位一致率约 28%）。
-  该现象在修复前的原始脚本上同样存在，属贪心延伸算法的既有问题，尚未定位。
-  **把 `long assemble` 的 contig 当作“参考级”证据前请自行验证**；`long locate` 的锚点命中与
-  参考坐标还原不受影响（它只用 50 bp 锚点与全 contig 比对）。
+  `aligned_bp-1` 的坐标 bug（这类数据里相当比例的 overlap 是反链）。`layout.tsv` 已不再输出：
+  它记录的坐标属于“当时那一轮”的坐标系，与最终 contig 直接对比只有约 28% 逐位一致，
+  这是**输出记账**问题（算法本身的延伸决策自洽），不是拼错——这也是改用
+  `assembly_support.tsv`（比对回验）做外部证据的原因。
+  **把 `long assemble` 的 contig 当作“参考级”证据前，先看支撑度状态**；`long locate` 的锚点
+  命中与参考坐标还原不受影响（它只用 50 bp 锚点与全 contig 比对）。
+- **`assembly_support.tsv` 需要 minimap2**（`-ax map-hifi -Y`）。缺失时只警告并跳过该报告，
+  其余产物不受影响；`--no-support-report` 可静默跳过。状态里的 `chimera_suspect` 是按
+  “相邻窗口深度骤降到 1/5 以下且至少 3 处”判的，属于提示而不是定论。
 - **`short scan` 的 legacy 三表列名保持历史写法**（`Insert_Position` 等），不要按列名推断基准；
   要机器可读、基准明确的版本请用同一目录下的 `<sample>.sites.canonical.tsv`
   （带 `_1based`/`_0based` 后缀，与 legacy 主表按 `(chrom, insert_pos_1based)` 一一对应）。

@@ -54,6 +54,23 @@
 | 10 | `nearest_other_insert` | — | 除 query 外、支持该位点 read 命中最多的插入片段（并列取名字小的）；没有其它插入片段命中时填 - |
 | 11 | `other_inserts` | — | 去掉 query 与最近者之后，其余命中过的插入片段，`,` 分隔；无则 - |
 
+## `assembly_support`
+
+| # | 列名 | 基准 | 说明 |
+|---|---|---|---|
+| 1 | `class_id` | — | 类 ID（= 目录名） |
+| 2 | `contig` | — | contig 名（contigs.fasta 里的记录名） |
+| 3 | `contig_length_bp` | — | contig 长度（bp） |
+| 4 | `n_reads_total` | — | 该类 reads 总数（FASTQ 行数 / 4） |
+| 5 | `n_reads_mapped` | — | 能比回该 contig 的 read 数（MAPQ >= 10） |
+| 6 | `covered_bp` | — | 被至少一条 read 覆盖的碱基数（合并区间后） |
+| 7 | `covered_fraction` | — | covered_bp / contig_length_bp，0-1 浮点 |
+| 8 | `mean_depth` | — | 比对碱基总数 / contig 长度 |
+| 9 | `depth_p10` | — | 非零窗口深度的 10% 分位（窗口 200 bp） |
+| 10 | `depth_cliffs` | — | 相邻窗口深度降到前一个一半以下的次数（chimera 信号） |
+| 11 | `ends_covered` | — | 首尾 100 bp 是否都被 read 覆盖（yes/no） |
+| 12 | `status` | — | ok / low_coverage / chimera_suspect / unsupported_ends / no_reads |
+
 ## `ribbon_blocks`
 
 !!! warning "尚未实现"

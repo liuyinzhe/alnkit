@@ -81,6 +81,21 @@ COLUMNS: dict[str, tuple[str, ...]] = {
         "nearest_other_insert",
         "other_inserts",
     ),
+    # 组装支撑度（A 方案）：把类内 reads 用 minimap2 打回 contig 的可复核证据
+    "assembly_support": (
+        "class_id",
+        "contig",
+        "contig_length_bp",
+        "n_reads_total",
+        "n_reads_mapped",
+        "covered_bp",
+        "covered_fraction",
+        "mean_depth",
+        "depth_p10",
+        "depth_cliffs",
+        "ends_covered",
+        "status",
+    ),
     # 丝带图映射块。注意：这里登记的是**规范名**，而 `alnkit plot ribbon` 目前仍按旧表头
     # （query_start / ref_start …）写出——迁移期有意保留，等 C1 的黄金口径统一后再切。
     "ribbon_blocks": (
@@ -136,6 +151,20 @@ COLUMN_DOC: dict[str, dict[str, str]] = {
             "（并列取名字小的）；没有其它插入片段命中时填 -"
         ),
         "other_inserts": "去掉 query 与最近者之后，其余命中过的插入片段，`,` 分隔；无则 -",
+    },
+    "assembly_support": {
+        "class_id": "类 ID（= 目录名）",
+        "contig": "contig 名（contigs.fasta 里的记录名）",
+        "contig_length_bp": "contig 长度（bp）",
+        "n_reads_total": "该类 reads 总数（FASTQ 行数 / 4）",
+        "n_reads_mapped": "能比回该 contig 的 read 数（MAPQ >= 10）",
+        "covered_bp": "被至少一条 read 覆盖的碱基数（合并区间后）",
+        "covered_fraction": "covered_bp / contig_length_bp，0-1 浮点",
+        "mean_depth": "比对碱基总数 / contig 长度",
+        "depth_p10": "非零窗口深度的 10% 分位（窗口 200 bp）",
+        "depth_cliffs": "相邻窗口深度降到前一个一半以下的次数（chimera 信号）",
+        "ends_covered": "首尾 100 bp 是否都被 read 覆盖（yes/no）",
+        "status": "ok / low_coverage / chimera_suspect / unsupported_ends / no_reads",
     },
     "ribbon_blocks": {
         "query_fragment": "查询片段名",

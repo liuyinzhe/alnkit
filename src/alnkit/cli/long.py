@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 
+from ..core.errors import UsageError
 from ..longread import assemble, breakpoints, classify, graph, locate
 from ._common import GLOBAL_OPTIONS
 
@@ -232,10 +233,42 @@ def _add_assemble(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
         default=200,
         help="多个邻居给出同一位置时允许的起点差（默认 200 bp）",
     )
+    parser.add_argument(
+        "--min-junction-depth-ratio",
+        dest="min_junction_depth_ratio",
+        type=float,
+        default=0.0,
+        help=(
+            "接缝局部深度 ÷ contig 平均深度 低于此比值就拒绝延伸（默认 0 = 关闭）。"
+            "实测 0.1/0.2/0.3 会把 5 条 contig 切碎成 10/16/17 条而锚点回收不变（8/8），"
+            "所以默认不启用；需要“宁可断开也不拼错”时再开"
+        ),
+    )
+    parser.add_argument(
+        "--bridge-window-bp",
+        dest="bridge_window_bp",
+        type=int,
+        default=200,
+        help=(
+            "接缝判定窗口总宽（默认 200 bp，即接缝两侧各 100 bp）；"
+            "只影响这道门槛，不改 assembly_support.tsv 的统计窗口（固定 200 bp）"
+        ),
+    )
+    parser.add_argument(
+        "--no-support-report",
+        dest="support_report",
+        action="store_false",
+        help="不生成 assembly_support.tsv（默认会用 minimap2 回映 reads 做支撑度统计）",
+    )
+    parser.add_argument("--threads", type=int, default=4, help="minimap2 回映线程数（默认 4）")
     parser.set_defaults(handler=run_assemble)
 
 
 def run_assemble(args: argparse.Namespace) -> int:
+    if args.min_junction_depth_ratio < 0:
+        raise UsageError("--min-junction-depth-ratio 不能为负数（0 表示关闭门槛）")
+    if args.bridge_window_bp < 2:
+        raise UsageError("--bridge-window-bp 至少要 2，否则接缝窗口会退化成单点")
     settings = assemble.AssembleSettings(
         classes_dir=args.classes_dir,
         paf=args.paf,
@@ -243,9 +276,18 @@ def run_assemble(args: argparse.Namespace) -> int:
         min_overlap=args.min_overlap,
         min_identity=args.min_identity,
         agreement_bp=args.agreement_bp,
+        min_junction_depth_ratio=args.min_junction_depth_ratio,
+        bridge_window_bp=args.bridge_window_bp,
+        support_report=args.support_report,
+        threads=args.threads,
     )
     result = assemble.run(settings)
     print(f"完成：{result['classes']} 个类，{result['contigs']} 条 contig；输出 {result['outdir']}")
+    if result["rejected_by_depth_ratio"]:
+        print(f"  被接缝相对深度门槛拒掉的延伸：{result['rejected_by_depth_ratio']} 次")
+    if result["support_status"]:
+        summary = ", ".join(f"{k}={v}" for k, v in sorted(result["support_status"].items()))
+        print(f"  组装支撑度（{result['support_rows']} 条 contig）：{summary}")
     return 0
 
 

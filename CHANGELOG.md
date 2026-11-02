@@ -5,6 +5,20 @@
 
 ## [Unreleased]
 
+### Added
+
+- **A6 `long assemble` 组装支撑度报告**（`assembly_support.tsv`，默认开启）：把类内 reads 用
+  `minimap2 -ax map-hifi -Y` 打回 contig，输出 `covered_fraction` / `mean_depth`（×）/
+  `depth_p10` / `depth_cliffs` / `ends_covered` / `status`
+  （`ok` / `low_coverage` / `chimera_suspect` / `unsupported_ends` / `no_reads`）。
+  只解析 SAM stdout，不落 BAM、不需要 samtools。没有 minimap2 时只警告并跳过；
+  `--no-support-report` 静默跳过。新增表 `assembly_support`（12 列，已进 `docs/concepts/tables.md`）。
+- `long assemble` 新增 `--min-junction-depth-ratio`（默认 `0` = 关闭）、`--bridge-window-bp`
+  （默认 200）、`--threads`（默认 4）。门槛比的是**接缝局部深度 ÷ contig 平均深度**：
+  接缝处绝对邻居数按构造恒为 1，所以绝对条数没有可用阈值（实测取 3 会把 5 个类拆成 642 条
+  contig）。相对门槛 0.1/0.2/0.3 实测会把 5 条 contig 切成 10/16/17 条而断点锚点回收不变
+  （均 8/8），因此默认不启用，留给“宁可断开也不拼错”的场景。
+
 ## [0.3.0] - 2026-11-02
 
 ### Removed

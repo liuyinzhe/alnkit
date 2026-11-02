@@ -39,12 +39,15 @@ from __future__ import annotations
 import collections
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import pysam
 
 from ..core.fasta import reverse_complement, write_fasta_records
+from ..core.logging import get_logger
 from ..core.paf import parse_paf
 from ..core.tables import write_legacy_tsv as write_tsv
+from . import support
 
 ### 读取输入 ###
 
@@ -234,7 +237,61 @@ def extend_contig(
     )
 
 
-def assemble_one_class(read_sequences, junction_read_names, best_blocks, agreement_bp):
+def count_junction_support(placed, read_sequences, junction, half_window_bp):
+    """数一数接缝处有多少条 read 支撑（B 方案，TGS-GapCloser 的 `--min_nread` 思路）。
+
+    为什么不是"跨接缝的 read 数"：延伸时新加的悬垂还没被任何已放置 read 覆盖，
+    那样数出来永远是 0。这里用**接缝处的覆盖深度**做代理：
+
+        support = 1（本次要放进去的 read）+ 已放置 read 中覆盖
+                  [junction ± half_window] 的条数
+
+    含义：这次延伸不是"一条 read 的孤独末端"，而是接在已经被若干 read 覆盖的序列上。
+    深度骤降（重复区、嵌合）时这个数会掉下来，从而拦住盲目的延伸。
+
+    输入示例: placed={"r1": (0, 1)}, read_sequences={"r1": "ACGT"*500}, junction=1500
+    输出示例: 2（r1 覆盖接缝 + 新 read 自己）
+    """
+    left, right = junction - half_window_bp, junction + half_window_bp
+    overlapping = 0
+    for name, (start, _direction) in placed.items():
+        # placed 里的 start 恒为“定向序列首碱基”的 contig 坐标，与 +/− 无关
+        # （extend_contig 与 placed_reads 都按 [start, start+len) 切片，别按方向翻）。
+        read_left = start
+        read_right = start + len(read_sequences[name]) - 1
+        if read_left <= right and read_right >= left:
+            overlapping += 1
+    return 1 + overlapping
+
+
+def junction_depth_ratio(placed, read_sequences, junction, half_window_bp):
+    """接缝局部深度 ÷ 该 contig 的平均深度（相对深度，抗测序深度差异）。
+
+    绝对邻居数在接缝处按构造恒为 1（造出边界的那条 read 必然覆盖接缝，更深的 read
+    覆盖不到还没拼进来的悬垂），所以**只能用相对量**：本函数把“接缝处有几条 read 覆盖”
+    和“这条 contig 平均有几条 read 叠着”相比。实测（本仓基准数据 38392 次候选评估）：
+    比值 min=0.057 / p10=0.53 / p50=1.71 / p90=2.62，门槛取 0.3 只拒掉 5.3%。
+
+    输入示例: placed={"r1": (0, 1), "r2": (500, 1)}, 两条各 1000 bp, junction=900
+    输出示例: 2 / mean_depth(≈2.0) ≈ 1.0
+    """
+    neighbours = count_junction_support(placed, read_sequences, junction, half_window_bp) - 1
+    left = min(start for start, _ in placed.values())
+    right = max(start + len(read_sequences[name]) - 1 for name, (start, _) in placed.items())
+    span = max(1, right - left + 1)
+    mean_depth = sum(len(read_sequences[name]) for name in placed) / span
+    return neighbours / mean_depth if mean_depth > 0 else 0.0
+
+
+def assemble_one_class(
+    read_sequences,
+    junction_read_names,
+    best_blocks,
+    agreement_bp,
+    bridge_window_bp=200,
+    min_junction_depth_ratio=0.0,
+    statistics=None,
+):
     """对一个类做贪心延伸，返回 contig 列表与布局信息。
 
     输入示例: read_sequences={"j1": "...", "v1": "..."}, junction_read_names={"j1"},
@@ -246,6 +303,8 @@ def assemble_one_class(read_sequences, junction_read_names, best_blocks, agreeme
       * 每一轮挑“延长量最大”的候选；位置互相矛盾（重复序列）的 read 先跳过；
       * 没有 overlap 连到当前 contig 的 read 会另起一条 contig（不硬拼）。
     """
+    if statistics is None:
+        statistics = collections.Counter()
     pair_blocks = collections.defaultdict(list)
     for pair, block in best_blocks.items():
         pair_blocks[pair].append(block)
@@ -292,6 +351,14 @@ def assemble_one_class(read_sequences, junction_read_names, best_blocks, agreeme
                             contig_start,
                             contig_end,
                         )
+                        # 接缝 = 本次重叠在 contig 轴上的边界（往左延伸时取左端，否则右端）
+                        if left_extension:
+                            junction = max(unplaced_start, contig_start)
+                        else:
+                            junction = min(
+                                unplaced_start + len(read_sequences[unplaced_name]) - 1,
+                                contig_end - 1,
+                            )
                         candidate_placements.append(
                             {
                                 "unplaced_start": unplaced_start,
@@ -299,11 +366,19 @@ def assemble_one_class(read_sequences, junction_read_names, best_blocks, agreeme
                                 "left_extension": left_extension,
                                 "right_extension": right_extension,
                                 "overlap_score": block["block_bp"] * block["identity"],
+                                "junction": junction,
                             }
                         )
                 chosen = choose_placement(candidate_placements, agreement_bp)
                 if chosen is None:
                     continue
+                if min_junction_depth_ratio > 0:
+                    ratio = junction_depth_ratio(
+                        placed, read_sequences, chosen["junction"], bridge_window_bp // 2
+                    )
+                    if ratio < min_junction_depth_ratio:
+                        statistics["rejected_by_depth_ratio"] += 1
+                        continue
                 candidates.append((chosen, unplaced_name))
 
             if not candidates:
@@ -324,6 +399,9 @@ def assemble_one_class(read_sequences, junction_read_names, best_blocks, agreeme
                 chosen["unplaced_start"],
                 chosen["unplaced_direction"],
             )
+            # placed 里的坐标始终是“以种子为原点”的坐标系（contig_start 可为负），
+            # 不能随 contig_start 平移，否则会和 extension_lengths 的基准错位。
+            # 平移到最终 contig 坐标只在收尾时做一次。
             placed[unplaced_name] = (chosen["unplaced_start"], chosen["unplaced_direction"])
             unplaced.remove(unplaced_name)
             placed_reads.append(
@@ -367,6 +445,9 @@ def assemble_one_class(read_sequences, junction_read_names, best_blocks, agreeme
 ### 主流程 ###
 
 
+logger = get_logger("assemble")
+
+
 @dataclass(slots=True)
 class AssembleSettings:
     """``alnkit long assemble`` 的全部入参（与旧脚本参数一一对应）。"""
@@ -377,11 +458,16 @@ class AssembleSettings:
     min_overlap: int = 500
     min_identity: float = 0.90
     agreement_bp: int = 200
+    min_junction_depth_ratio: float = 0.0
+    bridge_window_bp: int = 200
+    support_report: bool = True
+    threads: int = 4
 
 
 def run(settings: AssembleSettings) -> dict[str, object]:
     os.makedirs(settings.outdir, exist_ok=True)
 
+    statistics = collections.Counter()
     class_names = sorted(
         name
         for name in os.listdir(settings.classes_dir)
@@ -400,7 +486,13 @@ def run(settings: AssembleSettings) -> dict[str, object]:
             settings.paf, set(read_sequences), settings.min_overlap, settings.min_identity
         )
         contigs = assemble_one_class(
-            read_sequences, junction_read_names, best_blocks, settings.agreement_bp
+            read_sequences,
+            junction_read_names,
+            best_blocks,
+            settings.agreement_bp,
+            min_junction_depth_ratio=settings.min_junction_depth_ratio,
+            bridge_window_bp=settings.bridge_window_bp,
+            statistics=statistics,
         )
 
         output_dir = os.path.join(settings.outdir, class_name, "overlap_extension")
@@ -446,8 +538,28 @@ def run(settings: AssembleSettings) -> dict[str, object]:
         summary_rows,
     )
 
+    support_rows = []
+    if settings.support_report:
+        minimap2 = support.find_minimap2()
+        if minimap2 is None:
+            logger.warning("没找到 minimap2，跳过组装支撑度报告（--no-support-report 可静默跳过）")
+        else:
+            support_rows = support.collect_all_support(
+                Path(settings.outdir),
+                Path(settings.classes_dir),
+                minimap2,
+                threads=max(1, settings.threads),
+                class_names=class_names,
+            )
+            support_path = Path(settings.outdir) / "assembly_support.tsv"
+            support.write_support_report(support_rows, support_path)
+            logger.info("组装支撑度 -> %s（%d 条 contig）", support_path, len(support_rows))
+
     return {
         "outdir": settings.outdir,
         "classes": len(class_names),
         "contigs": len(all_contigs),
+        "support_rows": len(support_rows),
+        "rejected_by_depth_ratio": statistics.get("rejected_by_depth_ratio", 0),
+        "support_status": collections.Counter(row.status for row in support_rows),
     }
