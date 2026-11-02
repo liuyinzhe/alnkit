@@ -34,6 +34,14 @@ alnkit long classify [全局选项] [--bam …] [--reads …] [--merged-fai …]
 
 ## 例子
 
+```text
+上游 BAM 的生成要求（断点证据来自 CIGAR 的 S，所以这两条是硬要求）：
+  minimap2 -ax map-hifi -Y -N 50 -t 8 merged.fa reads.fq \
+      | samtools sort -o reads.sorted.bam -  &&  samtools index reads.sorted.bam
+  -Y     补充比对用 soft clip（否则被 hard clip，取不到断点/归属）
+  -N 50  保留足够的次要比对（共有 read 的归属判定要用）
+```
+
 ```bash
 alnkit long classify --bam reads_to_merged.sorted.bam 
           --reads input.fastq --merged-fai merged.fa.fai 

@@ -33,8 +33,6 @@ nav:
       - cli/index.md
       - doctor: cli/alnkit-doctor.md
       - selftest: cli/alnkit-selftest.md
-      - ref merge: cli/alnkit-ref-merge.md
-      - align reads: cli/alnkit-align-reads.md
       - seg table: cli/alnkit-seg-table.md
       - plot tracks: cli/alnkit-plot-tracks.md
       - plot ribbon: cli/alnkit-plot-ribbon.md

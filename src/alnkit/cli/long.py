@@ -30,13 +30,19 @@ def _add_classify(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
     parser = subparsers.add_parser(
         "classify",
         parents=[GLOBAL_OPTIONS],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="目标 reads 分类 + 接头事件/位点/区域聚类",
         description=(
             "先按外源证据筛出目标 read，再逐段判定外源/基因组/可疑错配，"
             "最后把接头事件聚成位点与区域，并导出相关 reads 子集。"
         ),
         epilog=(
-            "例子：\n  alnkit long classify --bam reads_to_merged.sorted.bam \\\n"
+            "上游 BAM 的生成要求（断点证据来自 CIGAR 的 S，所以这两条是硬要求）：\n"
+            "  minimap2 -ax map-hifi -Y -N 50 -t 8 merged.fa reads.fq \\\n"
+            "      | samtools sort -o reads.sorted.bam -  &&  samtools index reads.sorted.bam\n"
+            "  -Y     补充比对用 soft clip（否则被 hard clip，取不到断点/归属）\n"
+            "  -N 50  保留足够的次要比对（共有 read 的归属判定要用）\n"
+            "\n例子：\n  alnkit long classify --bam reads_to_merged.sorted.bam \\\n"
             "          --reads input.fastq --merged-fai merged.fa.fai \\\n"
             "          --exog insertA --exog insertB --outdir 03_classify"
         ),
@@ -125,6 +131,7 @@ def _add_breakpoints(subparsers: argparse._SubParsersAction[argparse.ArgumentPar
     parser = subparsers.add_parser(
         "breakpoints",
         parents=[GLOBAL_OPTIONS],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="断点图方案 A：紧邻片段断点 + 共享 reads 合并成类",
         description=(
             "在 read 轴上按“紧邻片段”定义断点（基因组–外源 = vector S##；"
@@ -187,6 +194,7 @@ def _add_assemble(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
     parser = subparsers.add_parser(
         "assemble",
         parents=[GLOBAL_OPTIONS],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="按 overlap 关系贪心延伸组装每个类",
         description=(
             "每个类先拿一条最长的接头 read 作种子，再从 overlap 边里反复挑一条能往"
@@ -245,6 +253,7 @@ def _add_locate(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
     parser = subparsers.add_parser(
         "locate",
         parents=[GLOBAL_OPTIONS],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="50 bp 断点锚点 + 外源查询 -> 丝带图 + 参考坐标还原",
         description=(
             "为每个类构造查询序列（断点旁 50 bp 锚点 + 全部外源），与类组装比对后逐条 contig 出图，"
@@ -302,6 +311,7 @@ def _add_graph(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
     parser = subparsers.add_parser(
         "graph",
         parents=[GLOBAL_OPTIONS],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="read-vs-read overlap 边与连通分量",
         description=(
             "读 all-vs-all PAF（minimap2 -x ava-pb -c），每对 read 只保留最好的一条 overlap，"

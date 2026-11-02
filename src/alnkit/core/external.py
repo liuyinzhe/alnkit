@@ -6,8 +6,10 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 __all__ = ["Tool", "ALIGNERS", "REFERENCE_TOOLS", "find_tool"]
@@ -38,10 +40,35 @@ class Tool:
         return self.version or "已安装（版本未知）"
 
 
-def _read_version(name: str, path: str) -> str | None:
+#: 版本号形态（``0.7.19-r1273`` / ``2.31-r1302`` / ``1.24``）；用于从帮助文本里抠版本
+_VERSION_PATTERN = re.compile(r"\b(\d+\.\d+(?:[.\-+][0-9A-Za-z]+)*)\b")
+
+
+def _extract_version(text: str) -> str | None:
+    """从命令行输出里取版本号。
+
+    ``minimap2 --version`` / ``samtools --version`` 直接给一行版本；
+    ``bwa --version`` 会报 "unrecognized command" 并把帮助打到 stderr，
+    因此要退化成"跑一次无参调用，从帮助里找 Version 行"。
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line in lines:
+        if "version" in line.lower():
+            match = _VERSION_PATTERN.search(line)
+            if match:
+                return match.group(1)
+    # 没有 "Version:" 字样的（minimap2 / samtools）就取第一个像版本号的 token
+    for line in lines:
+        match = _VERSION_PATTERN.search(line)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _run_probe(path: str, args: Sequence[str]) -> str | None:
     try:
         completed = subprocess.run(
-            [path, "--version"],
+            [path, *args],
             capture_output=True,
             text=True,
             timeout=_TIMEOUT_SECONDS,
@@ -49,9 +76,18 @@ def _read_version(name: str, path: str) -> str | None:
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    for line in (completed.stdout + completed.stderr).splitlines():
-        if line.strip():
-            return line.strip()[:120]
+    return completed.stdout + completed.stderr
+
+
+def _read_version(name: str, path: str) -> str | None:
+    """探测版本：先 ``--version``；不支持时退化成无参调用（bwa 属于后者）。"""
+    for args in (("--version",), ()):
+        output = _run_probe(path, args)
+        if not output:
+            continue
+        version = _extract_version(output)
+        if version:
+            return version
     return None
 
 

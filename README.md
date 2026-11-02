@@ -4,23 +4,45 @@ BAM/PAF 的插入证据工具箱：断点提取 + 独立绘图。
 二代与三代各一条链路，绘图工具可独立使用。
 
 
+## 上游准备（自己跑，两步）
+
+`alnkit` 从"合并参考 + BAM"开始，这两步用现成命令做即可：
+
+```bash
+# 1) 合并参考：外源序列转大写后拼到参考末尾，再建索引
+cat ref.fa <(awk '/^>/{print;next}{print toupper($0)}' exogA.fa exogB.fa) > merged.fa
+samtools faidx merged.fa
+
+# 2) 比对（长读长）。-Y 与 -N 50 不是可选项，理由见下
+minimap2 -ax map-hifi -Y -N 50 -t 8 merged.fa reads.fq \
+    | samtools sort -o reads.sorted.bam -
+samtools index reads.sorted.bam
+```
+
+| 参数 | 为什么必须 | 不加会怎样 |
+|---|---|---|
+| `-Y` | 补充比对用 **soft** clip 表达；`long classify` 只从 CIGAR 的 `S` 取断点与归属 | 变成 hard clip，断点证据直接丢失 |
+| `-N 50` | 保留足够的次要比对，用于"共有 read"归属判定 | 同源区段的 read 归属判不出来，断点被错分 |
+
+短读长同理：`bwa mem -Y`（**不要** `-M`，否则补充比对被标成 secondary），比对后不要用
+`samtools view -F 2048/-F 256/-q` 过滤掉它们。
+
 ## 三条链路
 
 > 示例里的序列名（`target_ref`/`homolog_ref`/`insertA`…）是**占位名**，换成你自己 BAM/FASTA header 里真实存在的名字；`long classify` 会校验并列出可用名。
 
 ```bash
 # 三代：参考 → 比对 → 分类 → overlap → 断点/类 → 组装 → 落点
-alnkit ref merge      --reference ref.fa.gz --exog exog/h.fa --exog exog/l.fa --outdir 01_ref
-alnkit align reads    --reference 01_ref/merged_reference.fa --reads input.fastq --outdir 02_align
-alnkit long classify  --bam 02_align/reads_to_merged.sorted.bam --reads input.fastq \
-                      --merged-fai 01_ref/merged_reference.fa.fai --exog insertA --exog insertB \
+# 上游两步见上面「上游准备」：得到 merged.fa(.fai) 与 reads.sorted.bam
+alnkit long classify  --bam reads.sorted.bam --reads input.fastq \
+                      --merged-fai merged.fa.fai --exog insertA --exog insertB \
                       --outdir 03_classify
 alnkit long graph     --paf 04_overlap/overlaps.paf \
                       --classification 03_classify/read_classification.tsv --outdir 04_overlap
 alnkit long breakpoints --segments 03_classify/alignment_segments.tsv \
                       --classification 03_classify/read_classification.tsv \
                       --overlaps 04_overlap/overlap_edges.tsv --reads 03_classify/related_reads.fastq \
-                      --merged-fai 01_ref/merged_reference.fa.fai --outdir 05_breakpoints
+                      --merged-fai merged.fa.fai --outdir 05_breakpoints
 alnkit long assemble  --classes-dir 05_breakpoints/classes --paf 04_overlap/overlaps.paf \
                       --outdir 06_assembly
 alnkit long locate    --regions 05_breakpoints/breakpoint_classes.tsv \
@@ -70,8 +92,6 @@ alnkit selftest        # 内置断言（坐标/表契约 + 二代断点口径，
 | `alnkit plot tracks` | 单 read 轨道图（BAM / PAF / 段表） | 可用 |
 | `alnkit plot ribbon` | 共线性丝带图（内部比对 / 现成 PAF） | 可用 |
 | `alnkit short scan` | 二代插入断点证据（SR / PESR / DUP）三张表 | 可用 |
-| `alnkit ref merge` | 参考 + 外源 → 合并参考（含 .fai 与 header 表） | 可用 |
-| `alnkit align reads` | reads → 合并参考的 sorted BAM（minimap2 薄封装） | 可用 |
 | `alnkit long classify` | 三代目标 reads 分类 + 接头位点/区域 | 可用 |
 | `alnkit long graph` | read-vs-read overlap 边与连通分量 | 可用 |
 | `alnkit long breakpoints` | 三代断点（S##/G##）+ 共享 reads 合并成类 + 类池 | 可用 |
@@ -117,8 +137,9 @@ hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_as
 - **`short scan` 的 legacy 三表列名保持历史写法**（`Insert_Position` 等），不要按列名推断基准；
   要机器可读、基准明确的版本请用同一目录下的 `<sample>.sites.canonical.tsv`
   （带 `_1based`/`_0based` 后缀，与 legacy 主表按 `(chrom, insert_pos_1based)` 一一对应）。
-- `long locate` 的 PDF 与 `align reads` 的 BAM 不能与其他运行逐字节比较（前者含生成时间，
-  后者 `@PG` 记录命令行含路径）；两者的等价性分别用“大小”与“比对记录 md5”验证。
+- `long locate` 的 PDF 含生成时间，不能与其他运行逐字节比较（测试只比大小）；
+  你自己生成的 BAM 与本项目历史产物的字节也不会相同（`@PG` 记录命令行），
+  但比对记录本身可用于对账。
 
 ## 许可
 

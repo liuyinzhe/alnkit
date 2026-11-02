@@ -42,6 +42,7 @@ def _add_tracks(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
     parser = subparsers.add_parser(
         "tracks",
         parents=[GLOBAL_OPTIONS],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="单条 read 的比对片段轨道图",
         description=(
             "一条 read 一行，横轴为 read 自身坐标；每个比对片段画成一个块。"
@@ -164,6 +165,7 @@ def _add_ribbon(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
     parser = subparsers.add_parser(
         "ribbon",
         parents=[GLOBAL_OPTIONS],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="共线性丝带图（参考 vs 多个查询片段）",
         description=(
             "方式 1：给 --reference + --query，内部跑 minimap2；"

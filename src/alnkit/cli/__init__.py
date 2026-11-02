@@ -11,10 +11,10 @@ from collections.abc import Sequence
 
 from .. import __version__
 from ..core import errors
-from . import align, doctor, long, plot, ref, seg, selftest, short
+from . import doctor, long, plot, seg, selftest, short
 from ._common import apply_global_options
 
-_COMMANDS = (doctor, selftest, ref, align, seg, plot, short, long)
+_COMMANDS = (doctor, selftest, seg, plot, short, long)
 
 
 def build_parser() -> argparse.ArgumentParser:

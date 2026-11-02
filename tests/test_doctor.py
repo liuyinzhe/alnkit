@@ -44,3 +44,34 @@ def test_missing_required_dependency_raises(monkeypatch) -> None:
 
     with pytest.raises(errors.RunError, match="pysam"):
         doctor.run(argparse.Namespace())
+
+
+def test_version_probe_falls_back_to_help_output(tmp_path, monkeypatch) -> None:
+    """`bwa --version` 不被支持：要退化成"跑一次无参调用，从帮助里抠版本"。"""
+    from alnkit.core import external
+
+    fake = tmp_path / "bwa"
+    fake.write_text(
+        "#!/usr/bin/env bash\n"
+        'if [ "${1:-}" = "--version" ]; then\n'
+        "  echo \"[main] unrecognized command '--version'\" >&2\n"
+        "  exit 1\n"
+        "fi\n"
+        "echo 'Program: bwa (alignment via Burrows-Wheeler transformation)' >&2\n"
+        "echo 'Version: 0.7.19-r1273' >&2\n",
+        encoding="utf-8",
+    )
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}:{__import__('os').environ['PATH']}")
+
+    tool = external.find_tool("bwa")
+    assert tool.available is True
+    assert tool.version == "0.7.19-r1273", tool.version
+
+
+def test_version_probe_handles_plain_version_line() -> None:
+    from alnkit.core import external
+
+    assert external._extract_version("2.31-r1302\n") == "2.31-r1302"
+    assert external._extract_version("samtools 1.24\nUsing htslib 1.24\n") == "1.24"
+    assert external._extract_version("[main] unrecognized command '--version'") is None

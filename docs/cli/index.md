@@ -7,8 +7,6 @@
 |---|---|
 | [`alnkit doctor`](alnkit-doctor.md) | 检查运行环境（Python / 依赖 / 外部命令） |
 | [`alnkit selftest`](alnkit-selftest.md) | 运行内置自检（不需要输入数据） |
-| [`alnkit ref merge`](alnkit-ref-merge.md) | 参考 + 外源 -> merged_reference.fa（含 .fai 与 header 表） |
-| [`alnkit align reads`](alnkit-align-reads.md) | 长读长 reads -> sorted BAM（-ax map-hifi -Y -N 50） |
 | [`alnkit seg table`](alnkit-seg-table.md) | BAM -> 比对段表 |
 | [`alnkit plot tracks`](alnkit-plot-tracks.md) | 单条 read 的比对片段轨道图 |
 | [`alnkit plot ribbon`](alnkit-plot-ribbon.md) | 共线性丝带图（参考 vs 多个查询片段） |

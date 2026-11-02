@@ -240,50 +240,6 @@ def main(argv: list[str]) -> int:
     else:
         print("跳过 A7 黄金：缺 reference.fa 或外源 fasta", file=sys.stderr)
 
-    # --- A1 ref merge / A2 align reads：直接收编上游 shell 跑出的产物 ---
-    merge_src = source / "01_merge_ref"
-    align_src = source / "02_align_merged"
-    if merge_src.exists() and align_src.exists():
-        for suffix in ("", ".fai"):
-            link = inputs / ("merged_reference.fa" + suffix)
-            if link.is_symlink() or link.exists():
-                link.unlink()
-            link.symlink_to(merge_src / ("merged_reference.fa" + suffix))
-        ref_golden = dest / "golden/refmerge"
-        ref_golden.mkdir(parents=True, exist_ok=True)
-        for name in ("reference_headers.tsv", "exogenous_uppercased.fa",
-                     "reference.fa.fai", "merged_reference.fa.fai"):
-            shutil.copy2(merge_src / name, ref_golden / name)
-        # 2.3 GB 的 fasta 不入库，只记 md5
-        digest = hashlib.md5((merge_src / "merged_reference.fa").read_bytes()).hexdigest()
-        (ref_golden / "merged_reference.md5").write_text(digest + "\n", encoding="utf-8")
-        write_provenance(
-            ref_golden, generator="upstream",
-            command=["bash", "shell/01_merge_ref.sh"],
-            script=(scripts / "../shell/01_merge_ref.sh").resolve(),
-        )
-        print(f"黄金 refmerge: {sorted(p.name for p in ref_golden.iterdir())}")
-
-        align_golden = dest / "golden/align"
-        align_golden.mkdir(parents=True, exist_ok=True)
-        records = subprocess.run(
-            ["samtools", "view", "-F", "0x900", str(align_src / "reads_to_merged.sorted.bam")],
-            capture_output=True, check=False,
-        )
-        if records.returncode != 0:
-            return _fail("samtools view 失败（A2 黄金）")
-        (align_golden / "records.md5").write_text(
-            hashlib.md5(records.stdout).hexdigest() + "\n", encoding="utf-8"
-        )
-        write_provenance(
-            align_golden, generator="upstream",
-            command=["bash", "shell/02_align_merged.sh"],
-            script=(scripts / "../shell/02_align_merged.sh").resolve(),
-        )
-        print(f"黄金 align: {sorted(p.name for p in align_golden.iterdir())}")
-    else:
-        print("跳过 A1/A2 黄金：缺 01_merge_ref/ 或 02_align_merged/", file=sys.stderr)
-
     print(f"\n完成：{dest}\n用法：export ALNKIT_TEST_DATA={args.dest}")
     return 0
 

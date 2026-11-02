@@ -39,7 +39,7 @@ def test_cli_docs_are_up_to_date() -> None:
     spec.loader.exec_module(module)
 
     pages = module.render_all()
-    assert len(pages) >= 14, f"命令页只有 {len(pages)} 个，是否漏了子命令？"
+    assert len(pages) >= 12, f"命令页只有 {len(pages)} 个，是否漏了子命令？"
     for name, content in pages.items():
         target = ROOT / "docs" / "cli" / name
         assert target.exists(), f"缺 docs/cli/{name}：运行 python scripts/gen_cli_docs.py"

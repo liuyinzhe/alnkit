@@ -49,6 +49,7 @@ def _add_table(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
     parser = subparsers.add_parser(
         "table",
         parents=[GLOBAL_OPTIONS],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="BAM -> 比对段表",
         description="输出规范列（默认）或历史 14 列（--columns legacy）。",
         epilog=(

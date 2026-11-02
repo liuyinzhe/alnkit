@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-02
+
+### Removed
+
+- **移除 `alnkit ref merge` 与 `alnkit align reads`**（以及与它们配套的测试与对账）：
+  这两步用现成命令做即可（`cat` + `samtools faidx`、`minimap2 -Y -N 50 | samtools sort`），
+  放在包里属于重复封装。README 新增「上游准备」一节，写明命令与两个关键参数的必要性
+  （`-Y` 让补充比对用 soft clip，否则断点证据丢失；`-N 50` 保留次要比对用于归属判定）。
+  `long classify --help` 也会直接打印这段要求。
+
+### Fixed
+
+- `doctor` 之前把 `bwa` 的报错当成版本号（`bwa --version` 不被支持，会输出
+  "unrecognized command"）。现在版本探测在 `--version` 失败时退化成无参调用，
+  从帮助文本里取 `Version:` 一行。
+- 给 `long|plot|seg` 的子命令加了 `RawDescriptionHelpFormatter`：多行 `--help` 不再被重排成一行。
+
 ## [0.2.0] - 2026-11-02
 
 ### Security
@@ -122,7 +139,8 @@
 - 文档骨架：`docs/index.md`、`docs/install.md`、`docs/quickstart.md`、`docs/concepts/coordinates.md`、
   `docs/concepts/tables.md`（由 `core.tables` 生成）。
 
-[Unreleased]: https://github.com/liuyinzhe/alnkit/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/liuyinzhe/alnkit/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/liuyinzhe/alnkit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/liuyinzhe/alnkit/releases/tag/v0.2.0
 [0.1.1]: https://github.com/liuyinzhe/alnkit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/liuyinzhe/alnkit/releases/tag/v0.1.0

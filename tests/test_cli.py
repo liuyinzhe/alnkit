@@ -12,16 +12,7 @@ def test_parser_exposes_commands() -> None:
     parser = build_parser()
     actions = [a for a in parser._subparsers._group_actions if hasattr(a, "choices")]  # noqa: SLF001
     choices = set(actions[0].choices)
-    assert choices == {
-        "doctor",
-        "selftest",
-        "ref",
-        "align",
-        "seg",
-        "plot",
-        "short",
-        "long",
-    }
+    assert choices == {"doctor", "selftest", "seg", "plot", "short", "long"}
 
 
 def test_no_arguments_prints_help(capsys) -> None:
