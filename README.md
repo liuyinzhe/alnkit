@@ -138,8 +138,9 @@ hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_as
   `assembly_support.tsv`（比对回验）做外部证据的原因。
   **把 `long assemble` 的 contig 当作“参考级”证据前，先看支撑度状态**；`long locate` 的锚点
   命中与参考坐标还原不受影响（它只用 50 bp 锚点与全 contig 比对）。
-  需要“宁可断开也不拼错”时加 `--min-junction-depth-ratio 0.1`（默认 `0` 关闭；
-  实测 0.1 会把 5 条 contig 切成 10 条而锚点回收不变，见 CHANGELOG）。
+  延伸决策本身不做深度截断——试过的接缝门槛（绝对条数、相对深度）与 DEGAP 式招募
+  在这套数据上都不改善锚点回收，已按“不留无效开关”的原则移除，可靠性只看
+  `assembly_support.tsv` 的 `status` 列。
 - **`assembly_support.tsv` 需要 minimap2**（`-ax map-hifi -Y`）。缺失时只警告并跳过该报告，
   其余产物不受影响；`--no-support-report` 可静默跳过。状态里的 `chimera_suspect` 是按
   “相邻窗口深度骤降到 1/5 以下且至少 3 处”判的，属于提示而不是定论。

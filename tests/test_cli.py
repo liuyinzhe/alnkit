@@ -51,3 +51,11 @@ def test_doctor_runs(capsys) -> None:
 
 def test_global_options_are_accepted_after_subcommand(capsys) -> None:
     assert main(["selftest", "--log-level", "ERROR", "--quiet"]) == 0
+
+
+def test_removed_assemble_flags_are_rejected(capsys) -> None:
+    """0.4.0 评估后删除的参数不能再被接受（否则用户的旧脚本会静默失效）。"""
+    for flag in ("--min-junction-depth-ratio", "--recruit-edges", "--min-bridge-reads"):
+        with pytest.raises(SystemExit) as excinfo:
+            main(["long", "assemble", "--classes-dir", "x", "--paf", "y", "--outdir", "z", flag])
+        assert excinfo.value.code == 2

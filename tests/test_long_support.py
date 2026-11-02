@@ -1,4 +1,4 @@
-"""`long assemble` 的 A/B 两项增量：支撑度报告（A）与接缝支持门槛（B）。"""
+"""`long assemble` 的组装支撑度报告（A 方案）。"""
 
 from __future__ import annotations
 
@@ -8,81 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from alnkit.longread import assemble, support
-
-### 接缝支持数（反链坐标回归） ###
-
-
-@pytest.mark.parametrize("direction", [1, -1])
-def test_junction_support_counts_both_strands(direction: int) -> None:
-    """placed 里的 start 恒为定向序列首碱基坐标，与 +/− 无关（曾经的 bug）。"""
-    sequences = {"r1": "A" * 1000}
-    placed = {"r1": (500, direction)}
-    # 接缝落在 r1 的 [500, 1500) 内 → r1 覆盖 + 本次 read 自己 = 2
-    assert assemble.count_junction_support(placed, sequences, 900, 100) == 2
-    # 接缝远在右侧（r1 只到 1499，窗口左侧 1350 仍相交 → 仍算覆盖）
-    assert assemble.count_junction_support(placed, sequences, 1450, 100) == 2
-    # 接缝在左侧 100 bp 外 → 只有本次 read 自己
-    assert assemble.count_junction_support(placed, sequences, 300, 100) == 1
-
-
-def test_junction_support_sums_neighbours() -> None:
-    """邻居越多支持数越大；窗口变大能圈进更远的 read。"""
-    sequences = {"r1": "A" * 1000, "r2": "A" * 1000, "r3": "A" * 2000}
-    placed = {"r1": (500, 1), "r2": (600, -1), "r3": (0, 1)}
-    # 窗口 ±100 覆盖到 r1/r2/r3 三者 → 3 邻居 + 本次 = 4
-    assert assemble.count_junction_support(placed, sequences, 900, 100) == 4
-    # 接缝在 r3 右端外（r3 只到 1999）→ 没有邻居，只剩本次 read
-    assert assemble.count_junction_support(placed, sequences, 2500, 100) == 1
-    # 窗口放宽到 ±800 才圈到 r3 → 1 邻居 + 本次 = 2
-    assert assemble.count_junction_support(placed, sequences, 2500, 800) == 2
-
-
-def test_junction_depth_ratio_gate() -> None:
-    """相对深度门槛：调高到不可能满足时不再延伸，类里只剩种子自己一条 contig。"""
-    sequences = {"j1": "ACGT" * 500, "v1": "TGCA" * 500}
-    blocks = {
-        ("j1", "v1"): {
-            "query": "v1",
-            "target": "j1",
-            "strand": "+",
-            "block_bp": 500,
-            "identity": 1.0,
-            "query_start": 0,
-            "query_end": 500,
-            "target_start": 1500,
-            "target_end": 2000,
-        }
-    }
-    loose = assemble.assemble_one_class(
-        sequences, {"j1"}, blocks, agreement_bp=200, min_junction_depth_ratio=0.0
-    )
-    assert len(loose) == 1
-    assert len(loose[0]["placed"]) == 2
-
-    statistics = assemble.collections.Counter()
-    strict = assemble.assemble_one_class(
-        sequences,
-        {"j1"},
-        blocks,
-        agreement_bp=200,
-        min_junction_depth_ratio=99.0,
-        statistics=statistics,
-    )
-    assert statistics["rejected_by_depth_ratio"] > 0
-    assert [len(contig["placed"]) for contig in strict] == [1, 1]
-
-
-def test_junction_depth_ratio_is_relative() -> None:
-    """比值 = 接缝邻居数 ÷ 已放置 read 的平均深度，而不是绝对条数。"""
-    sequences = {"r1": "A" * 1000, "r2": "A" * 1000}
-    # 两条 read 完全重叠 → 平均深度 2×，接缝处邻居 2 → 比值约 1.0
-    placed = {"r1": (0, 1), "r2": (0, 1)}
-    ratio = assemble.junction_depth_ratio(placed, sequences, 500, 100)
-    assert ratio == pytest.approx(1.0)
-    # 只有种子时平均深度 1×、邻居 1 → 仍是 1.0（尺度无关）
-    assert assemble.junction_depth_ratio({"r1": (0, 1)}, sequences, 500, 100) == 1.0
-
+from alnkit.longread import support
 
 ### 支撑度统计 ###
 
@@ -106,6 +32,13 @@ def test_coverage_stats_merges_overlaps_for_covered_bp() -> None:
     assert fraction == pytest.approx(1.0)
     assert mean_depth == pytest.approx(1.1)
     assert depths == pytest.approx([1.1])
+
+
+def test_count_cliffs_positive_case() -> None:
+    """深度骤降要能被数出来（此前只测了“不断层”）。"""
+    assert support._count_cliffs([4.0, 0.5]) == 1
+    assert support._count_cliffs([4.0, 3.0, 0.5]) == 1
+    assert support._count_cliffs([1.5, 0.1]) == 0  # 前窗口 <2× 不算（噪声）
 
 
 def test_status_thresholds() -> None:
@@ -176,7 +109,10 @@ def test_collect_support_ignores_secondary(tmp_path: Path, stub_minimap2: Path) 
 
     output = tmp_path / "assembly_support.tsv"
     support.write_support_report(rows, output)
-    body = output.read_text(encoding="utf-8").splitlines()
+    body = [
+        line for line in output.read_text(encoding="utf-8").splitlines() if not line.startswith("#")
+    ]
+    assert len(body[0].split("\t")) == 12  # 表头必须与 assembly_support 的 12 列一致
     assert body[-1].split("\t")[0] == "C01"
     assert body[-1].split("\t")[-1] == "ok"
 
@@ -197,13 +133,28 @@ def test_collect_support_reports_stderr(tmp_path: Path) -> None:
     assert os.fspath(contigs) in str(excinfo.value)
 
 
-def test_parse_contigs_survives_bad_fasta(tmp_path: Path) -> None:
-    """重复 contig 名不清零、空 header 不抛 IndexError（防御性）。"""
+def test_parse_contigs_drops_duplicate_names(tmp_path: Path) -> None:
+    """重名 contig 只保留第一条（重名会让 minimap2 把两条序列混进同一个桶）。"""
     fasta = tmp_path / "contigs.fasta"
     fasta.write_text(">ctg1\nACGT\n>ctg1\nACGTACGT\n>\nACGT\n", encoding="utf-8")
     lengths = support._parse_contigs(fasta)
-    assert lengths["ctg1"] == 12  # 同名累加，不是被第二条覆盖成 8
+    assert lengths["ctg1"] == 4  # 只保留第一条，不把两条长度相加
     assert lengths.get("", 0) == 0  # 空 header 的记录直接忽略，不抛异常
+
+
+def test_covered_bp_merges_overlaps() -> None:
+    """窗口覆盖率要按“合并后的覆盖”算：3 条 read 各盖同一段 20 bp 仍是 20 bp。"""
+    assert support._covered_bp([(0, 20)] * 3, 0, 100) == 20
+    assert support._covered_bp([(0, 60), (40, 100)], 0, 100) == 100
+
+
+def test_ends_covered_requires_real_coverage() -> None:
+    """末端只被重复覆盖一小段时报 no，而不是被 3 条 read 的重复计数灌成 yes。"""
+    intervals = [(0, 20)] * 3
+    rows = support.coverage_stats(2000, intervals)
+    assert rows[0] == 20
+    # 直接验证 status 判据用的窗口覆盖量
+    assert support._covered_bp(intervals, 0, 100) == 20  # < 50 → 不算撑住
 
 
 def test_class_names_accepts_single_string(tmp_path: Path, stub_minimap2: Path) -> None:

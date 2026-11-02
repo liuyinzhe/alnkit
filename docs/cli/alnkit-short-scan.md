@@ -62,6 +62,13 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
   alnkit short scan --self-test
 ```
 
+```text
+产物:
+  三张 legacy .xls（列名与旧脚本一致）+ <sample>.sites.canonical.tsv（机器接口）。
+  注意: reads_info 的 legacy 表头把 stand 与 mapping_quality 合并成一列（11 列），
+  数据行其实是 12 列——按表头名解析会错位，按位置或用 canonical 表。
+```
+
 ## 退出码
 
 `0` 成功（可有警告）/ `1` 运行期错误 / `2` 参数或前置校验失败。

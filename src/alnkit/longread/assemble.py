@@ -8,8 +8,7 @@
 #
 # 另外默认还会写 06_assembly/assembly_support.tsv（A 方案：把类内 reads 用
 # minimap2 打回 contig 做支撑度回验，见 longread/support.py）；它不属于与旧脚本
-# 对账的范围，`--no-support-report` 可关掉。`--recruit-edges`（C 方案，默认关）
-# 会在贪心结果两端再做边锚定招募，见 longread/recruit.py。
+# 对账的范围，`--no-support-report` 可关掉。
 #
 # **不输出 layout.tsv**：它没有任何下游消费者（`long locate` 只读 contigs.fasta），
 # 而独立校验发现它记录的 contig 内坐标与最终 contig 序列逐位一致率只有约 28%
@@ -53,7 +52,7 @@ from ..core.fasta import reverse_complement, write_fasta_records
 from ..core.logging import get_logger
 from ..core.paf import parse_paf
 from ..core.tables import write_legacy_tsv as write_tsv
-from . import recruit, support
+from . import support
 
 ### 读取输入 ###
 
@@ -243,60 +242,11 @@ def extend_contig(
     )
 
 
-def count_junction_support(placed, read_sequences, junction, half_window_bp):
-    """数一数接缝处有多少条 read 支撑（B 方案，TGS-GapCloser 的 `--min_nread` 思路）。
-
-    为什么不是"跨接缝的 read 数"：延伸时新加的悬垂还没被任何已放置 read 覆盖，
-    那样数出来永远是 0。这里用**接缝处的覆盖深度**做代理：
-
-        support = 1（本次要放进去的 read）+ 已放置 read 中覆盖
-                  [junction ± half_window] 的条数
-
-    含义：这次延伸不是"一条 read 的孤独末端"，而是接在已经被若干 read 覆盖的序列上。
-    深度骤降（重复区、嵌合）时这个数会掉下来，从而拦住盲目的延伸。
-
-    输入示例: placed={"r1": (0, 1)}, read_sequences={"r1": "ACGT"*500}, junction=1500
-    输出示例: 2（r1 覆盖接缝 + 新 read 自己）
-    """
-    left, right = junction - half_window_bp, junction + half_window_bp
-    overlapping = 0
-    for name, (start, _direction) in placed.items():
-        # placed 里的 start 恒为“定向序列首碱基”的 contig 坐标，与 +/− 无关
-        # （extend_contig 与 placed_reads 都按 [start, start+len) 切片，别按方向翻）。
-        read_left = start
-        read_right = start + len(read_sequences[name]) - 1
-        if read_left <= right and read_right >= left:
-            overlapping += 1
-    return 1 + overlapping
-
-
-def junction_depth_ratio(placed, read_sequences, junction, half_window_bp):
-    """接缝局部深度 ÷ 该 contig 的平均深度（相对深度，抗测序深度差异）。
-
-    绝对邻居数在接缝处按构造恒为 1（造出边界的那条 read 必然覆盖接缝，更深的 read
-    覆盖不到还没拼进来的悬垂），所以**只能用相对量**：本函数把“接缝处有几条 read 覆盖”
-    和“这条 contig 平均有几条 read 叠着”相比。实测（本仓基准数据 38392 次候选评估）：
-    比值 min=0.057 / p10=0.53 / p50=1.71 / p90=2.62，门槛取 0.3 只拒掉 5.3%。
-
-    输入示例: placed={"r1": (0, 1), "r2": (0, 1)}, 两条各 1000 bp, junction=500
-    输出示例: 2 / 2.0 = 1.0（两条完全重叠 → 平均深度 2×，接缝邻居 2）
-    """
-    neighbours = count_junction_support(placed, read_sequences, junction, half_window_bp) - 1
-    left = min(start for start, _ in placed.values())
-    right = max(start + len(read_sequences[name]) - 1 for name, (start, _) in placed.items())
-    span = max(1, right - left + 1)
-    mean_depth = sum(len(read_sequences[name]) for name in placed) / span
-    return neighbours / mean_depth if mean_depth > 0 else 0.0
-
-
 def assemble_one_class(
     read_sequences,
     junction_read_names,
     best_blocks,
     agreement_bp,
-    bridge_window_bp=200,
-    min_junction_depth_ratio=0.0,
-    statistics=None,
 ):
     """对一个类做贪心延伸，返回 contig 列表与布局信息。
 
@@ -309,12 +259,6 @@ def assemble_one_class(
       * 每一轮挑“延长量最大”的候选；位置互相矛盾（重复序列）的 read 先跳过；
       * 没有 overlap 连到当前 contig 的 read 会另起一条 contig（不硬拼）。
     """
-    if statistics is None:
-        statistics = collections.Counter()
-    pair_blocks = collections.defaultdict(list)
-    for pair, block in best_blocks.items():
-        pair_blocks[pair].append(block)
-
     unplaced = set(read_sequences)
     contigs = []
 
@@ -328,7 +272,6 @@ def assemble_one_class(
         contig_sequence = read_sequences[seed_name]
         contig_start, contig_end = 0, len(contig_sequence)
         placed = {seed_name: (0, 1)}
-        placed_reads = [[seed_name, 0, len(contig_sequence), "+", 1]]
 
         progress = True
         while progress:
@@ -338,54 +281,39 @@ def assemble_one_class(
                 candidate_placements = []
                 for placed_name, (placed_start, placed_direction) in placed.items():
                     pair = tuple(sorted((unplaced_name, placed_name)))
-                    for block in pair_blocks.get(pair, []):
-                        placement = placement_from_block(
-                            placed_name,
-                            placed_start,
-                            placed_direction,
-                            len(read_sequences[placed_name]),
-                            unplaced_name,
-                            len(read_sequences[unplaced_name]),
-                            block,
-                        )
-                        if placement is None:
-                            continue
-                        unplaced_start, unplaced_direction = placement
-                        left_extension, right_extension = extension_lengths(
-                            unplaced_start,
-                            len(read_sequences[unplaced_name]),
-                            contig_start,
-                            contig_end,
-                        )
-                        # 接缝 = 本次重叠在 contig 轴上的边界（往左延伸时取左端，否则右端）。
-                        # 一条 read 同时向两侧延伸时只评估左接缝（两侧都被它自己覆盖）。
-                        if left_extension:
-                            junction = max(unplaced_start, contig_start)
-                        else:
-                            junction = min(
-                                unplaced_start + len(read_sequences[unplaced_name]) - 1,
-                                contig_end - 1,
-                            )
-                        candidate_placements.append(
-                            {
-                                "unplaced_start": unplaced_start,
-                                "unplaced_direction": unplaced_direction,
-                                "left_extension": left_extension,
-                                "right_extension": right_extension,
-                                "overlap_score": block["block_bp"] * block["identity"],
-                                "junction": junction,
-                            }
-                        )
+                    block = best_blocks.get(pair)
+                    if block is None:
+                        continue
+                    placement = placement_from_block(
+                        placed_name,
+                        placed_start,
+                        placed_direction,
+                        len(read_sequences[placed_name]),
+                        unplaced_name,
+                        len(read_sequences[unplaced_name]),
+                        block,
+                    )
+                    if placement is None:
+                        continue
+                    unplaced_start, unplaced_direction = placement
+                    left_extension, right_extension = extension_lengths(
+                        unplaced_start,
+                        len(read_sequences[unplaced_name]),
+                        contig_start,
+                        contig_end,
+                    )
+                    candidate_placements.append(
+                        {
+                            "unplaced_start": unplaced_start,
+                            "unplaced_direction": unplaced_direction,
+                            "left_extension": left_extension,
+                            "right_extension": right_extension,
+                            "overlap_score": block["block_bp"] * block["identity"],
+                        }
+                    )
                 chosen = choose_placement(candidate_placements, agreement_bp)
                 if chosen is None:
                     continue
-                if min_junction_depth_ratio > 0:
-                    ratio = junction_depth_ratio(
-                        placed, read_sequences, chosen["junction"], bridge_window_bp // 2
-                    )
-                    if ratio < min_junction_depth_ratio:
-                        statistics["rejected_by_depth_ratio"] += 1
-                        continue
                 candidates.append((chosen, unplaced_name))
 
             if not candidates:
@@ -411,29 +339,17 @@ def assemble_one_class(
             # 平移到最终 contig 坐标只在收尾时做一次。
             placed[unplaced_name] = (chosen["unplaced_start"], chosen["unplaced_direction"])
             unplaced.remove(unplaced_name)
-            placed_reads.append(
-                [
-                    unplaced_name,
-                    chosen["unplaced_start"],
-                    chosen["unplaced_start"] + len(read_sequences[unplaced_name]),
-                    "+" if chosen["unplaced_direction"] == 1 else "-",
-                    len(placed_reads) + 1,
-                ]
-            )
             progress = True
 
-        # 记账坐标是“以种子为原点”的全局坐标，左侧延伸后可能出现负值；
-        # 这里统一平移到最终 contig 的 0-based 坐标（只用于统计，不再写表）。
-        coordinate_shift = -contig_start
-        if coordinate_shift:
-            for row in placed_reads:
-                row[1] += coordinate_shift
-                row[2] += coordinate_shift
-        for row in placed_reads:
-            if row[1] < 0 or row[2] > len(contig_sequence):
+        # 自检：placed 用的是“以种子为原点”的坐标（contig_start 可为负），
+        # 平移到最终 contig 的 0-based 坐标后必须落在 [0, len) 内。
+        for name, (start, _direction) in placed.items():
+            left = start - contig_start
+            right = left + len(read_sequences[name])
+            if left < 0 or right > len(contig_sequence):
                 raise RuntimeError(
-                    "layout coordinate out of contig: {0} not in [0, {1}]".format(
-                        (row[1], row[2]), len(contig_sequence)
+                    "placed read out of contig: {0} [{1}, {2}) not in [0, {3})".format(
+                        name, left, right, len(contig_sequence)
                     )
                 )
 
@@ -441,7 +357,6 @@ def assemble_one_class(
             {
                 "name": "oe_contig{0}".format(len(contigs) + 1),
                 "sequence": contig_sequence,
-                "placed": placed_reads,
                 "n_reads": len(placed),
             }
         )
@@ -465,19 +380,13 @@ class AssembleSettings:
     min_overlap: int = 500
     min_identity: float = 0.90
     agreement_bp: int = 200
-    min_junction_depth_ratio: float = 0.0
-    bridge_window_bp: int = 200
     support_report: bool = True
-    recruit_edges: bool = False
-    recruit_min_support: int = 2
-    recruit_rounds: int = 6
     threads: int = 4
 
 
 def run(settings: AssembleSettings) -> dict[str, object]:
     os.makedirs(settings.outdir, exist_ok=True)
 
-    statistics = collections.Counter()
     class_names = sorted(
         name
         for name in os.listdir(settings.classes_dir)
@@ -500,29 +409,7 @@ def run(settings: AssembleSettings) -> dict[str, object]:
             junction_read_names,
             best_blocks,
             settings.agreement_bp,
-            min_junction_depth_ratio=settings.min_junction_depth_ratio,
-            bridge_window_bp=settings.bridge_window_bp,
-            statistics=statistics,
         )
-
-        if settings.recruit_edges:
-            minimap2 = support.find_minimap2()
-            if minimap2 is None:
-                logger.warning("没找到 minimap2，跳过边锚定招募（--recruit-edges）")
-            else:
-                reads_path = Path(os.path.join(class_dir, "reads.fastq"))
-                recruit_settings = recruit.RecruitSettings(
-                    min_support=settings.recruit_min_support,
-                    max_rounds=settings.recruit_rounds,
-                    threads=max(1, settings.threads),
-                )
-                for contig in contigs:
-                    extended, right_rounds, left_rounds = recruit.extend_contig_ends(
-                        contig["sequence"], reads_path, read_sequences, minimap2, recruit_settings
-                    )
-                    if right_rounds or left_rounds:
-                        statistics["recruited_rounds"] += right_rounds + left_rounds
-                        contig["sequence"] = extended
 
         output_dir = os.path.join(settings.outdir, class_name, "overlap_extension")
         os.makedirs(output_dir, exist_ok=True)
@@ -589,7 +476,5 @@ def run(settings: AssembleSettings) -> dict[str, object]:
         "classes": len(class_names),
         "contigs": len(all_contigs),
         "support_rows": len(support_rows),
-        "rejected_by_depth_ratio": statistics.get("rejected_by_depth_ratio", 0),
         "support_status": collections.Counter(row.status for row in support_rows),
-        "recruited_rounds": statistics.get("recruited_rounds", 0),
     }

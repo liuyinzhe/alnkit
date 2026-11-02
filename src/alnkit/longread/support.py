@@ -124,7 +124,12 @@ def _parse_contigs(fasta_path: Path) -> dict[str, int]:
     for line in fasta_path.read_text(encoding="utf-8").splitlines():
         if line.startswith(">"):
             name = (line[1:].split() or [""])[0]
-            lengths.setdefault(name, 0)
+            if name in lengths:
+                # 重名会让 minimap2 把两条序列的比对混进同一个桶，长度也会被相加
+                logger.warning("%s: contig 名重复（%s），只保留第一条", fasta_path.name, name)
+                name = None
+                continue
+            lengths[name] = 0
         elif name:
             lengths[name] += len(line.strip())
     return lengths
@@ -134,7 +139,7 @@ def _parse_sam_line(line: str) -> tuple[str, str, int, int, int] | None:
     """从 SAM 行取 (read 名, 参考名, 起点, 参考跨度, MAPQ)。
 
     跳过未比对（0x4）与 secondary（0x100）记录；保留 supplementary（0x800），
-    因为 `-Y` 下嵌合 read 的远段就是独立的 supplementary 记录。
+    因为 `-Y` 下嵌合 read 的远段就是独立的 supplementary 记录（它们同样要过 MAPQ 门槛）。
     跨度只累加 M/D/N/=/X（软/硬剪贴与插入不占参考）。
     """
     fields = line.rstrip("\n").split("\t")
@@ -206,7 +211,8 @@ def collect_support(
         intervals[reference].append((start, start + span))
         mapped_reads[reference].add(read_name)
 
-    n_reads_total = sum(1 for _ in pysam.FastxFile(str(reads_fastq)))
+    with pysam.FastxFile(str(reads_fastq)) as handle:
+        n_reads_total = sum(1 for _ in handle)
     rows: list[SupportRow] = []
     for contig, length in sorted(contig_lengths.items()):
         covered_bp, covered_fraction, mean_depth, depths = coverage_stats(
@@ -243,7 +249,10 @@ def collect_support(
 
 
 def _covered_bp(intervals: list[tuple[int, int]], start: int, end: int) -> int:
-    return sum(max(0, min(end, right) - max(start, left)) for left, right in intervals)
+    """窗口 [start, end) 内**去重后**被覆盖的碱基数（重叠的 read 不能重复计数）。"""
+    clipped = [(max(start, left), min(end, right)) for left, right in intervals]
+    clipped = [(left, right) for left, right in clipped if right > left]
+    return sum(right - left for left, right in merge_intervals(clipped))
 
 
 def _status(covered_fraction: float, mean_depth: float, cliffs: int, ends: str) -> str:

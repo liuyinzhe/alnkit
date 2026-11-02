@@ -207,7 +207,7 @@ def _add_ribbon(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
         help="参考行放顶部还是底部",
     )
     order = parser.add_mutually_exclusive_group()
-    order.add_argument("--order", help="行顺序，用 > 分隔")
+    order.add_argument("--order", help="行顺序，用逗号分隔（如 reference,insertA）")
     order.add_argument("--order-file", dest="order_file", help="行顺序清单文件")
     parser.add_argument("--dpi", type=int, default=100, help="PNG 分辨率（默认 100）")
     parser.add_argument(

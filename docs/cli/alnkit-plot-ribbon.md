@@ -22,7 +22,7 @@ alnkit plot ribbon [全局选项] [--reference …] [--query …] [--query-file 
 | `--name` | 是 | — | 输出文件名前缀 |
 | `--title` | 否 | — | 图标题（英文，避免缺字体） |
 | `--reference-position` | 否 | `top` | 参考行放顶部还是底部（可选：`top`, `bottom`） |
-| `--order` | 否 | — | 行顺序，用 > 分隔 |
+| `--order` | 否 | — | 行顺序，用逗号分隔（如 reference,insertA） |
 | `--order-file` | 否 | — | 行顺序清单文件 |
 | `--dpi` | 否 | `100` | PNG 分辨率（默认 100） |
 | `--min-label-bp` | 否 | `300` | 只标长度不小于它的块（默认 300） |

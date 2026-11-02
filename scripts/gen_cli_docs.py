@@ -49,17 +49,17 @@ def _leaf_commands(
 
 def _format_default(action: argparse.Action) -> str:
     default = action.default
+    if default is argparse.SUPPRESS:
+        return "—"
     if isinstance(default, Path):
         # 默认值是 Path.cwd() 的参数不能让文档跟着"在哪台机器上生成"变
         return "`当前目录`" if default == Path.cwd() else f"`{default}`"
     if isinstance(action, argparse._StoreFalseAction):  # noqa: SLF001
         # --no-xxx 这类开关：默认 True 表示“功能默认开着”，但开关本身默认是关闭的
         return "关" if default else "开"
-    if action.nargs == 0 or isinstance(action, argparse._StoreTrueAction):  # noqa: SLF001
+    if isinstance(action, (argparse._StoreTrueAction, argparse._StoreFalseAction)):  # noqa: SLF001
         return "关" if not default else "开"
     if default in (None, "", []):
-        return "—"
-    if default is argparse.SUPPRESS or default is sys.modules.get("argparse").SUPPRESS:
         return "—"
     return f"`{default}`"
 
@@ -93,14 +93,18 @@ def _usage_line(prog: str, parser: argparse.ArgumentParser) -> str:
         if a.option_strings
         and a.dest not in _GLOBAL_DESTS
         and a.dest != "help"
-        and not isinstance(a, argparse._StoreTrueAction)  # noqa: SLF001
+        and not isinstance(
+            a,
+            (argparse._StoreTrueAction, argparse._StoreFalseAction),  # noqa: SLF001
+        )
     ]
     for action in options:
         parts.append(f"[{action.option_strings[0]} …]")
     flags = [
         a
         for a in parser._actions  # noqa: SLF001
-        if isinstance(a, argparse._StoreTrueAction) and a.dest not in _GLOBAL_DESTS
+        if isinstance(a, (argparse._StoreTrueAction, argparse._StoreFalseAction))
+        and a.dest not in _GLOBAL_DESTS
     ]
     for action in flags:
         parts.append(f"[{action.option_strings[0]}]")

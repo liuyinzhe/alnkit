@@ -287,7 +287,12 @@ def align_file_to_reference(reference_fasta, query_fasta, threads, preset_args):
           否则会变成"没有比对块"这种难查的错。
     """
     command = build_minimap2_command(reference_fasta, query_fasta, threads, preset_args)
-    finished = subprocess.run(command, capture_output=True, text=True)
+    try:
+        finished = subprocess.run(command, capture_output=True, text=True)
+    except FileNotFoundError as error:
+        raise UsageError(
+            "找不到 minimap2（{0}）：装好再重试，或改用 --paf 直接喂比对结果".format(error.filename)
+        ) from error
     if finished.returncode != 0:
         raise UsageError(
             "minimap2 比对失败（退出码 {0}）：{1}\n  命令：{2}".format(

@@ -3,7 +3,7 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 SemVer。
 条目按功能 ID（`A*` 三代 / `B*` 二代 / `C*` 绘图 / `D*` 公共层）分组，ID 定义见规划文档。
 
-## [0.4.0] - 2026-11-01
+## [0.4.0] - 2026-11-02
 
 ### Added
 
@@ -13,24 +13,17 @@
   （`ok` / `low_coverage` / `chimera_suspect` / `unsupported_ends` / `no_reads`）。
   只解析 SAM stdout，不落 BAM、不需要 samtools。没有 minimap2 时只警告并跳过；
   `--no-support-report` 静默跳过。新增表 `assembly_support`（12 列，已进 `docs/concepts/tables.md`）。
-- `long assemble` 新增 `--min-junction-depth-ratio`（默认 `0` = 关闭）、`--bridge-window-bp`
-  （默认 200）、`--threads`（默认 4）。门槛比的是**接缝局部深度 ÷ contig 平均深度**：
-  接缝处绝对邻居数按构造恒为 1，所以绝对条数没有可用阈值（实测取 3 会把 5 个类拆成 642 条
-  contig）。相对门槛 0.1/0.2/0.3 实测会把 5 条 contig 切成 10/16/17 条而断点锚点回收不变
-  （均 8/8），因此默认不启用，留给“宁可断开也不拼错”的场景。
-- **方案 C：`long assemble --recruit-edges`**（借鉴 DEGAP，默认关闭，需 minimap2）：贪心组装后，
-  用 contig 末端 500 bp 当探针招募 read，把越过端点的**悬垂**按“前缀相同的 read 簇”移植过来，
-  每轮必须延长 ≥100 bp 才接受，最多 6 轮。新增 `--recruit-min-support`（默认 2）与
-  `--recruit-rounds`（默认 6）。带**重复序列守卫**：悬垂前缀的出现条数超过接缝锚点出现条数的
-  3 倍就拒绝（实测 C05 左端曾因此把 123/128 条 read 都带的一段重复序列拼进来，造成 11 kb 无覆盖）。
-  本数据实测：contig 总长 +18–31%（如 C05 64,635 → 82,966 bp）、断点锚点仍 8/8、5 个类共 3 轮通过验收。
-
+- `long assemble` 新增 `--threads`（默认 4），供支撑度报告的 minimap2 回映使用。
 ### Removed
 
 - `long assemble` 不再输出 `layout.tsv`（0.1.0 起就在做，本版补记）：它没有下游消费者，
   且其中记录的是“每轮当时的坐标系”，与最终 contig 逐位一致率只有约 28%——属**输出记账**问题，
-  贪心延伸的决策本身自洽（把坐标随左延伸平移反而会让序列被悄悄改短，见 `05_assembly_support_notes.md` §4）。
+  贪心延伸的决策本身自洽（把坐标随左延伸平移反而会让序列被悄悄改短）。
   排障需要该表时可直接跑上游 `scripts/overlap_assembly.py`。
+- **评估后未采纳**（为避免留下无效开关，实现已整块删除）：接缝绝对支持数门槛
+  （接缝处邻居数按构造恒为 1，门槛 2 永不触发、门槛 3 会把 5 个类拆成 642 条 contig）、
+  接缝相对深度门槛（0.1/0.2/0.3 会把 5 条 contig 切成 10/16/17 条，断点锚点回收始终 8/8，
+  无收益）、DEGAP 式边锚定招募（contig 长 +18–31% 但延长段常落重复区，同样不改善锚点回收）。
 
 ## [0.3.0] - 2026-11-02
 

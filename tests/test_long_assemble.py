@@ -90,8 +90,7 @@ def test_outputs_match_upstream_script(tmp_path: Path) -> None:
     """整目录必须与上游脚本（已修确定性）逐字节一致。
 
     A 方案要在对账前关掉：`--no-support-report` 不额外写 `assembly_support.tsv`。
-    支撑度报告默认开启，属于黄金基线之外的**增量产物**；相对深度门槛默认关闭
-    （`--min-junction-depth-ratio 0`），所以不影响逐字节对账。
+    支撑度报告默认开启，属于黄金基线之外的**增量产物**；其余产物不受影响。
     """
     assert PRIVATE is not None
     classes, paf = _inputs()
