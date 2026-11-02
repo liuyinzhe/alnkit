@@ -17,7 +17,7 @@ _HEADER = """# 表契约
 
 - 列序即下表顺序，写表只能通过 `alnkit.core.tables.write_tsv`；
 - 坐标列名必须带 `_0based` / `_1based` 后缀；长度列（`*_bp`、`*_len`、`*_length`、`*_count`）不带；
-- 旧表（legacy `.xls` / 旧 TSV）列名保持不变，由 `--columns legacy:*` 复现；
+- 旧表（legacy `.xls` / 旧 TSV）列名保持不变，由 `--columns legacy` 复现；
 - 浮点固定 4 位小数；空值写 `-`。
 """
 

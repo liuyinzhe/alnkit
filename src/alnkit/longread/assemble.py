@@ -6,6 +6,11 @@
 # 参数解析搬到 alnkit.cli.long、库层收 AssembleSettings、main() 改为 run()。
 # 产物（contigs.fasta / assembly_stats.tsv / 汇总表）与旧脚本逐字节一致。
 #
+# 另外默认还会写 06_assembly/assembly_support.tsv（A 方案：把类内 reads 用
+# minimap2 打回 contig 做支撑度回验，见 longread/support.py）；它不属于与旧脚本
+# 对账的范围，`--no-support-report` 可关掉。`--recruit-edges`（C 方案，默认关）
+# 会在贪心结果两端再做边锚定招募，见 longread/recruit.py。
+#
 # **不输出 layout.tsv**：它没有任何下游消费者（`long locate` 只读 contigs.fasta），
 # 而独立校验发现它记录的 contig 内坐标与最终 contig 序列逐位一致率只有约 28%
 # （贪心延伸把 read 拼上去时的坐标记账问题，非本次移植引入；上游同样如此）。
@@ -26,6 +31,7 @@
 #   06_assembly/<class_id>/overlap_extension/assembly_stats.tsv
 #   06_assembly/overlap_assembly_summary.tsv
 #   06_assembly/all_overlap_contigs.fasta
+#   06_assembly/assembly_support.tsv                      支撑度回验（默认开，需 minimap2）
 #
 # 输入示例：
 #   --classes-dir 05_breakpoints/classes --paf 04_overlap_graph/overlaps.paf
@@ -47,7 +53,7 @@ from ..core.fasta import reverse_complement, write_fasta_records
 from ..core.logging import get_logger
 from ..core.paf import parse_paf
 from ..core.tables import write_legacy_tsv as write_tsv
-from . import support
+from . import recruit, support
 
 ### 读取输入 ###
 
@@ -272,8 +278,8 @@ def junction_depth_ratio(placed, read_sequences, junction, half_window_bp):
     和“这条 contig 平均有几条 read 叠着”相比。实测（本仓基准数据 38392 次候选评估）：
     比值 min=0.057 / p10=0.53 / p50=1.71 / p90=2.62，门槛取 0.3 只拒掉 5.3%。
 
-    输入示例: placed={"r1": (0, 1), "r2": (500, 1)}, 两条各 1000 bp, junction=900
-    输出示例: 2 / mean_depth(≈2.0) ≈ 1.0
+    输入示例: placed={"r1": (0, 1), "r2": (0, 1)}, 两条各 1000 bp, junction=500
+    输出示例: 2 / 2.0 = 1.0（两条完全重叠 → 平均深度 2×，接缝邻居 2）
     """
     neighbours = count_junction_support(placed, read_sequences, junction, half_window_bp) - 1
     left = min(start for start, _ in placed.values())
@@ -351,7 +357,8 @@ def assemble_one_class(
                             contig_start,
                             contig_end,
                         )
-                        # 接缝 = 本次重叠在 contig 轴上的边界（往左延伸时取左端，否则右端）
+                        # 接缝 = 本次重叠在 contig 轴上的边界（往左延伸时取左端，否则右端）。
+                        # 一条 read 同时向两侧延伸时只评估左接缝（两侧都被它自己覆盖）。
                         if left_extension:
                             junction = max(unplaced_start, contig_start)
                         else:
@@ -461,6 +468,9 @@ class AssembleSettings:
     min_junction_depth_ratio: float = 0.0
     bridge_window_bp: int = 200
     support_report: bool = True
+    recruit_edges: bool = False
+    recruit_min_support: int = 2
+    recruit_rounds: int = 6
     threads: int = 4
 
 
@@ -494,6 +504,25 @@ def run(settings: AssembleSettings) -> dict[str, object]:
             bridge_window_bp=settings.bridge_window_bp,
             statistics=statistics,
         )
+
+        if settings.recruit_edges:
+            minimap2 = support.find_minimap2()
+            if minimap2 is None:
+                logger.warning("没找到 minimap2，跳过边锚定招募（--recruit-edges）")
+            else:
+                reads_path = Path(os.path.join(class_dir, "reads.fastq"))
+                recruit_settings = recruit.RecruitSettings(
+                    min_support=settings.recruit_min_support,
+                    max_rounds=settings.recruit_rounds,
+                    threads=max(1, settings.threads),
+                )
+                for contig in contigs:
+                    extended, right_rounds, left_rounds = recruit.extend_contig_ends(
+                        contig["sequence"], reads_path, read_sequences, minimap2, recruit_settings
+                    )
+                    if right_rounds or left_rounds:
+                        statistics["recruited_rounds"] += right_rounds + left_rounds
+                        contig["sequence"] = extended
 
         output_dir = os.path.join(settings.outdir, class_name, "overlap_extension")
         os.makedirs(output_dir, exist_ok=True)
@@ -562,4 +591,5 @@ def run(settings: AssembleSettings) -> dict[str, object]:
         "support_rows": len(support_rows),
         "rejected_by_depth_ratio": statistics.get("rejected_by_depth_ratio", 0),
         "support_status": collections.Counter(row.status for row in support_rows),
+        "recruited_rounds": statistics.get("recruited_rounds", 0),
     }

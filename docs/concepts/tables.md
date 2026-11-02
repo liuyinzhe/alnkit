@@ -7,7 +7,7 @@
 
 - 列序即下表顺序，写表只能通过 `alnkit.core.tables.write_tsv`；
 - 坐标列名必须带 `_0based` / `_1based` 后缀；长度列（`*_bp`、`*_len`、`*_length`、`*_count`）不带；
-- 旧表（legacy `.xls` / 旧 TSV）列名保持不变，由 `--columns legacy:*` 复现；
+- 旧表（legacy `.xls` / 旧 TSV）列名保持不变，由 `--columns legacy` 复现；
 - 浮点固定 4 位小数；空值写 `-`。
 
 
@@ -67,8 +67,8 @@
 | 7 | `covered_fraction` | — | covered_bp / contig_length_bp，0-1 浮点 |
 | 8 | `mean_depth` | — | 比对碱基总数 / contig 长度 |
 | 9 | `depth_p10` | — | 非零窗口深度的 10% 分位（窗口 200 bp） |
-| 10 | `depth_cliffs` | — | 相邻窗口深度降到前一个一半以下的次数（chimera 信号） |
-| 11 | `ends_covered` | — | 首尾 100 bp 是否都被 read 覆盖（yes/no） |
+| 10 | `depth_cliffs` | — | 相邻 200 bp 窗口深度降到前一个 1/5 以下的次数（chimera 信号） |
+| 11 | `ends_covered` | — | 首尾各 100 bp 中是否至少有一半被 read 覆盖（yes/no） |
 | 12 | `status` | — | ok / low_coverage / chimera_suspect / unsupported_ends / no_reads |
 
 ## `ribbon_blocks`

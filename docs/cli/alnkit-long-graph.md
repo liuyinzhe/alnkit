@@ -28,7 +28,7 @@ alnkit long graph [全局选项] [--paf …] [--classification …] [--outdir �
 ## 例子
 
 ```bash
-alnkit long graph --paf overlaps.paf 
+alnkit long graph --paf overlaps.paf \
           --classification 03_classify/read_classification.tsv --outdir 04_overlap
 ```
 

@@ -31,11 +31,11 @@ alnkit long breakpoints [全局选项] [--segments …] [--classification …] [
 ## 例子
 
 ```bash
-alnkit long breakpoints 
-          --segments 03_classify/alignment_segments.tsv 
-          --classification 03_classify/read_classification.tsv 
-          --overlaps 04_overlap/overlap_edges.tsv 
-          --reads 03_classify/related_reads.fastq 
+alnkit long breakpoints \
+          --segments 03_classify/alignment_segments.tsv \
+          --classification 03_classify/read_classification.tsv \
+          --overlaps 04_overlap/overlap_edges.tsv \
+          --reads 03_classify/related_reads.fastq \
           --merged-fai merged.fa.fai --outdir 05_breakpoints
 ```
 

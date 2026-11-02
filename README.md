@@ -62,7 +62,8 @@ alnkit plot ribbon    --paf aln.paf --reference-name assembly_a --outdir out --n
 完整的参数说明见文档站的 **CLI 参考**（由 `--help` 自动生成）。
 >
 > `alnkit long assemble` 修掉了旧实现的非确定性（旧版遍历 `set`，同一输入会随
-> `PYTHONHASHSEED` 漂出不同 `layout.tsv`）；该修复已同步回上游，两边产物逐字节一致。
+> `PYTHONHASHSEED` 漂）。除 `layout.tsv`（本包不再输出，见「已知限制」）与
+> `assembly_support.tsv`（本包新增的回验表）之外，其余产物与旧脚本逐字节一致。
 > 计划与契约见仓库内 `docs/`。
 
 ## 安装
@@ -72,7 +73,9 @@ pip install alnkit            # 分析链路（核心依赖：pysam）
 pip install "alnkit[plot]"    # 额外装绘图（matplotlib）
 ```
 
-外部命令按需安装（不在 wheel 里）：`minimap2`（比对，>= 2.24）、`samtools`（参考索引/BAM，>= 1.16）。
+外部命令按需安装（不在 wheel 里）：`minimap2`（>= 2.24，长读长链路的 `long classify` /
+`long locate` / `plot ribbon` 内部比对 / `long assemble` 默认的支撑度报告都要它）；
+`samtools`（>= 1.16，**可选**，只有 `plot tracks --bam-mode subset` 会调用外部 `samtools`）。
 
 ## 快速开始
 
@@ -115,9 +118,9 @@ alnkit selftest        # 内置断言（坐标/表契约 + 二代断点口径，
 
 | 方案 | 锚点落回 | contig 数 | 总长 | 备注 |
 |---|---|---|---|---|
-| **`alnkit long assemble`** | **全部** | 5 | 137 kb | junction 作种子，天然沿着断点延伸 |
-| hifiasm（每类 reads 各自组装） | 只回落一小部分 | 9 | 1.16 Mb | 通用组装器在重复/嵌合处会断开，锚点正好落在断点缝上 |
-| miniasm（吃 `overlaps.paf`） | **0** | 11 | 0.39 Mb | 只保留覆盖度足够的 tiling path，断点两侧被裁掉 |
+| **`alnkit long assemble`** | **全部** | 5 | 340 kb | junction 作种子，天然沿着断点延伸 |
+| hifiasm（每类 reads 各自组装） | 只落回 3/8 | — | — | 通用组装器在重复/嵌合处会断开，锚点正好落在断点缝上 |
+| miniasm（吃 `overlaps.paf`） | **0/8** | — | — | 只保留覆盖度足够的 tiling path，断点两侧被裁掉 |
 
 结论：**两者都无法替代**，因此保留自带组装器。若你要的是"整段插入的完整序列"而不是"断点验证"，
 hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_assembly/<C>/overlap_extension/contigs.fasta`
@@ -135,6 +138,8 @@ hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_as
   `assembly_support.tsv`（比对回验）做外部证据的原因。
   **把 `long assemble` 的 contig 当作“参考级”证据前，先看支撑度状态**；`long locate` 的锚点
   命中与参考坐标还原不受影响（它只用 50 bp 锚点与全 contig 比对）。
+  需要“宁可断开也不拼错”时加 `--min-junction-depth-ratio 0.1`（默认 `0` 关闭；
+  实测 0.1 会把 5 条 contig 切成 10 条而锚点回收不变，见 CHANGELOG）。
 - **`assembly_support.tsv` 需要 minimap2**（`-ax map-hifi -Y`）。缺失时只警告并跳过该报告，
   其余产物不受影响；`--no-support-report` 可静默跳过。状态里的 `chimera_suspect` 是按
   “相邻窗口深度骤降到 1/5 以下且至少 3 处”判的，属于提示而不是定论。

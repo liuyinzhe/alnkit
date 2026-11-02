@@ -180,7 +180,7 @@ def _resolve_columns(header: Sequence[str], where: str) -> dict[str, str]:
     if missing:
         raise UsageError(
             f"{where}: 缺少必需列 {missing}；表头是 {list(header)}"
-            "（可用 --columns legacy:* 指定历史表头）"
+            "（可用 --columns legacy 指定历史表头）"
         )
     return resolved
 

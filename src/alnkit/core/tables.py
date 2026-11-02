@@ -162,8 +162,8 @@ COLUMN_DOC: dict[str, dict[str, str]] = {
         "covered_fraction": "covered_bp / contig_length_bp，0-1 浮点",
         "mean_depth": "比对碱基总数 / contig 长度",
         "depth_p10": "非零窗口深度的 10% 分位（窗口 200 bp）",
-        "depth_cliffs": "相邻窗口深度降到前一个一半以下的次数（chimera 信号）",
-        "ends_covered": "首尾 100 bp 是否都被 read 覆盖（yes/no）",
+        "depth_cliffs": "相邻 200 bp 窗口深度降到前一个 1/5 以下的次数（chimera 信号）",
+        "ends_covered": "首尾各 100 bp 中是否至少有一半被 read 覆盖（yes/no）",
         "status": "ok / low_coverage / chimera_suspect / unsupported_ends / no_reads",
     },
     "ribbon_blocks": {

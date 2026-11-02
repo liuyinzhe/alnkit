@@ -31,11 +31,11 @@ alnkit long locate [全局选项] [--regions …] [--sites …] [--reference-fas
 ## 例子
 
 ```bash
-alnkit long locate 
-          --regions 05_breakpoints/breakpoint_classes.tsv 
-          --sites 05_breakpoints/breakpoint_sites.tsv 
-          --reference-fasta reference.fa 
-          --exog exog/insertA.fa --exog exog/insertB.fa 
+alnkit long locate \
+          --regions 05_breakpoints/breakpoint_classes.tsv \
+          --sites 05_breakpoints/breakpoint_sites.tsv \
+          --reference-fasta reference.fa \
+          --exog exog/insertA.fa --exog exog/insertB.fa \
           --assembly-dir 06_assembly --outdir 07_ribbon_positions
 ```
 

@@ -52,6 +52,9 @@ def _format_default(action: argparse.Action) -> str:
     if isinstance(default, Path):
         # 默认值是 Path.cwd() 的参数不能让文档跟着"在哪台机器上生成"变
         return "`当前目录`" if default == Path.cwd() else f"`{default}`"
+    if isinstance(action, argparse._StoreFalseAction):  # noqa: SLF001
+        # --no-xxx 这类开关：默认 True 表示“功能默认开着”，但开关本身默认是关闭的
+        return "关" if default else "开"
     if action.nargs == 0 or isinstance(action, argparse._StoreTrueAction):  # noqa: SLF001
         return "关" if not default else "开"
     if default in (None, "", []):
@@ -135,7 +138,8 @@ def render_command(path: tuple[str, ...], parser: argparse.ArgumentParser) -> st
         for block in examples:
             if "例子" in block.split("\n")[0] and block.startswith("例子"):
                 body = block.split("\n", 1)[1] if "\n" in block else ""
-                lines += ["```bash", body.strip().replace("\\\n", "\n"), "```", ""]
+                # 保留行尾续行符：去掉的话读者复制多行命令会直接失败
+                lines += ["```bash", body.strip(), "```", ""]
             else:
                 lines += ["```text", block, "```", ""]
 

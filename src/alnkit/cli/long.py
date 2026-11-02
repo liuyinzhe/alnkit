@@ -1,6 +1,6 @@
 """长读长子命令：``alnkit long <classify|graph|breakpoints|assemble|locate>``。
 
-目前只有 ``classify``（A3）从旧流程迁入；其余随 P3 补齐。
+``classify`` / ``graph`` / ``breakpoints`` / ``assemble`` / ``locate`` 均已迁入。
 """
 
 from __future__ import annotations
@@ -199,12 +199,19 @@ def _add_assemble(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
         help="按 overlap 关系贪心延伸组装每个类",
         description=(
             "每个类先拿一条最长的接头 read 作种子，再从 overlap 边里反复挑一条能往"
-            "左/右延伸的 read，把非重叠悬垂序列接到 contig 两端。"
+            "左/右延伸的 read，把非重叠悬垂序列接到 contig 两端。\n\n"
+            "产物：<outdir>/<类>/overlap_extension/contigs.fasta + assembly_stats.tsv，"
+            "外加 <outdir>/assembly_support.tsv（默认开，需 minimap2；--no-support-report 关）。\n"
+            "接缝门槛默认关闭：--min-junction-depth-ratio 0.1 让“深度骤降处断开而不是硬拼”。\n"
+            "方案 C（--recruit-edges，默认关）：贪心之后再拿 contig 末端当探针招募 read 继续延长。"
         ),
         epilog=(
             "例子：\n  alnkit long assemble \\\n"
             "          --classes-dir 05_breakpoints/classes \\\n"
-            "          --paf 04_overlap/overlaps.paf --outdir 06_assembly"
+            "          --paf 04_overlap/overlaps.paf --outdir 06_assembly\n\n"
+            "加了支撑度报告后，先用\n"
+            "  column -t -s$'\\t' 06_assembly/assembly_support.tsv\n"
+            "看每类 contig 的 covered_fraction / mean_depth / depth_cliffs / status。"
         ),
     )
     parser.add_argument(
@@ -255,6 +262,29 @@ def _add_assemble(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
         ),
     )
     parser.add_argument(
+        "--recruit-edges",
+        dest="recruit_edges",
+        action="store_true",
+        help=(
+            "方案 C（借鉴 DEGAP）：贪心组装后，再用 contig 末端 500 bp 当探针招募 read，"
+            "把悬垂移植过来继续延长（每轮必须延长 ≥100 bp 才接受；默认关闭，需要 minimap2）"
+        ),
+    )
+    parser.add_argument(
+        "--recruit-min-support",
+        dest="recruit_min_support",
+        type=int,
+        default=2,
+        help="一个悬垂至少要有多少条 read 支持才移植（默认 2）",
+    )
+    parser.add_argument(
+        "--recruit-rounds",
+        dest="recruit_rounds",
+        type=int,
+        default=6,
+        help="端点招募最多几轮（默认 6）",
+    )
+    parser.add_argument(
         "--no-support-report",
         dest="support_report",
         action="store_false",
@@ -279,12 +309,17 @@ def run_assemble(args: argparse.Namespace) -> int:
         min_junction_depth_ratio=args.min_junction_depth_ratio,
         bridge_window_bp=args.bridge_window_bp,
         support_report=args.support_report,
+        recruit_edges=args.recruit_edges,
+        recruit_min_support=args.recruit_min_support,
+        recruit_rounds=args.recruit_rounds,
         threads=args.threads,
     )
     result = assemble.run(settings)
     print(f"完成：{result['classes']} 个类，{result['contigs']} 条 contig；输出 {result['outdir']}")
     if result["rejected_by_depth_ratio"]:
         print(f"  被接缝相对深度门槛拒掉的延伸：{result['rejected_by_depth_ratio']} 次")
+    if result["recruited_rounds"]:
+        print(f"  边锚定招募：{result['recruited_rounds']} 轮通过验收")
     if result["support_status"]:
         summary = ", ".join(f"{k}={v}" for k, v in sorted(result["support_status"].items()))
         print(f"  组装支撑度（{result['support_rows']} 条 contig）：{summary}")

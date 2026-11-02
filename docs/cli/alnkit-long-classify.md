@@ -43,8 +43,8 @@ alnkit long classify [全局选项] [--bam …] [--reads …] [--merged-fai …]
 ```
 
 ```bash
-alnkit long classify --bam reads_to_merged.sorted.bam 
-          --reads input.fastq --merged-fai merged.fa.fai 
+alnkit long classify --bam reads_to_merged.sorted.bam \
+          --reads input.fastq --merged-fai merged.fa.fai \
           --exog insertA --exog insertB --outdir 03_classify
 ```
 

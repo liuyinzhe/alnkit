@@ -73,7 +73,8 @@ def coverage_stats(
 ) -> tuple[int, float, float, list[float]]:
     """由 read 的参考区间算 (覆盖碱基数, 覆盖比例, 平均深度, 每窗口深度)。
 
-    ``mean_depth`` 用“比对碱基总数 / contig 长度”，与 `samtools depth` 的全局均值同义。
+    ``mean_depth`` 用“比对参考跨度之和 / contig 长度”（**含 D/N**，即缺失区间也算覆盖）。
+    没有 indel 时与 `samtools depth` 的全局均值一致；大片缺失会被当成有覆盖。
     返回的每窗口深度已按窗口实际长度归一化成**倍数（×）**，所以最后那个不满宽的
     窗口不会因为容量小而假报断层。
     """
@@ -122,8 +123,8 @@ def _parse_contigs(fasta_path: Path) -> dict[str, int]:
     name = None
     for line in fasta_path.read_text(encoding="utf-8").splitlines():
         if line.startswith(">"):
-            name = line[1:].split()[0]
-            lengths[name] = 0
+            name = (line[1:].split() or [""])[0]
+            lengths.setdefault(name, 0)
         elif name:
             lengths[name] += len(line.strip())
     return lengths
@@ -149,7 +150,10 @@ def _parse_sam_line(line: str) -> tuple[str, str, int, int, int] | None:
             span += int(length)
     if span <= 0:
         return None
-    start = to_0based(int(fields[3]))
+    position = int(fields[3])
+    if position < 1:  # SAM 是 1-based；0 出现说明来源异常，直接跳过
+        return None
+    start = to_0based(position)
     return fields[0], fields[2], start, span, mapq
 
 
@@ -210,11 +214,13 @@ def collect_support(
         )
         cliffs = _count_cliffs(depths)
         p10 = _percentile([depth for depth in depths if depth > 0], 0.10)
+        left_window = min(END_WINDOW_BP, length)
+        right_window = min(END_WINDOW_BP, length)
+        left_bp = _covered_bp(intervals[contig], 0, left_window)
+        right_bp = _covered_bp(intervals[contig], max(0, length - right_window), length)
         ends_covered = (
             "yes"
-            if intervals[contig]
-            and _covered_bp(intervals[contig], 0, min(END_WINDOW_BP, length)) > 0
-            and _covered_bp(intervals[contig], max(0, length - END_WINDOW_BP), length) > 0
+            if intervals[contig] and left_bp >= left_window // 2 and right_bp >= right_window // 2
             else "no"
         )
         rows.append(
@@ -304,6 +310,8 @@ def iter_assembly_dirs(assembly_dir: Path, class_names=None):
     """枚举 `<assembly>/<class>/overlap_extension/contigs.fasta`；``class_names`` 可限定子集。"""
     if not assembly_dir.exists():
         return
+    if isinstance(class_names, str):
+        class_names = [class_names]
     allowed = set(class_names) if class_names is not None else None
     for class_dir in sorted(assembly_dir.iterdir()):
         if not class_dir.is_dir() or (allowed is not None and class_dir.name not in allowed):

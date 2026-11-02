@@ -1,6 +1,6 @@
 """命令行入口：``alnkit <command>``。
 
-``doctor`` / ``selftest`` / ``plot tracks`` 已可用；其余分析命令随 P1–P3 迁入。
+6 个顶层命令 / 11 个叶子命令均已可用。
 """
 
 from __future__ import annotations

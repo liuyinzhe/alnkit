@@ -48,14 +48,17 @@ alnkit short scan --bam-dir ./bams --query-chr target_ref \
 ## 5. 三代断点→类→组装→落点
 
 ```bash
-alnkit long classify  --bam reads.bam --reads reads.fastq --fai merged.fa.fai \
+alnkit long classify  --bam reads.bam --reads reads.fastq --merged-fai merged.fa.fai \
     --exog insertA --exog insertB --outdir 03_classify
+minimap2 -x ava-pb -c -t 8 merged.fa merged.fa > 04_overlap/overlaps.paf   # all-vs-all
+alnkit long graph     --paf 04_overlap/overlaps.paf \
+    --classification 03_classify/read_classification.tsv --outdir 04_overlap
 alnkit long breakpoints --segments 03_classify/alignment_segments.tsv \
     --classification 03_classify/read_classification.tsv \
     --overlaps 04_overlap/overlap_edges.tsv --reads 03_classify/related_reads.fastq \
     --merged-fai merged.fa.fai --outdir 05_breakpoints
 alnkit long assemble --classes-dir 05_breakpoints/classes --paf 04_overlap/overlaps.paf \
-    --outdir 06_assembly
+    --outdir 06_assembly        # 额外写 assembly_support.tsv（需 minimap2）
 alnkit long locate --regions 05_breakpoints/breakpoint_classes.tsv \
     --sites 05_breakpoints/breakpoint_sites.tsv --reference-fasta reference.fa \
     --exog exog/insertA.fa --exog exog/insertB.fa \

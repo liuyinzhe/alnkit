@@ -195,3 +195,35 @@ def test_collect_support_reports_stderr(tmp_path: Path) -> None:
         support.collect_support("C01", contigs, reads, str(failing))
     assert "failed to open file" in str(excinfo.value)
     assert os.fspath(contigs) in str(excinfo.value)
+
+
+def test_parse_contigs_survives_bad_fasta(tmp_path: Path) -> None:
+    """重复 contig 名不清零、空 header 不抛 IndexError（防御性）。"""
+    fasta = tmp_path / "contigs.fasta"
+    fasta.write_text(">ctg1\nACGT\n>ctg1\nACGTACGT\n>\nACGT\n", encoding="utf-8")
+    lengths = support._parse_contigs(fasta)
+    assert lengths["ctg1"] == 12  # 同名累加，不是被第二条覆盖成 8
+    assert lengths.get("", 0) == 0  # 空 header 的记录直接忽略，不抛异常
+
+
+def test_class_names_accepts_single_string(tmp_path: Path, stub_minimap2: Path) -> None:
+    """库调用方传字符串时按“一个类”处理，不会把 "C01" 拆成字符集。"""
+    assembly = tmp_path / "assembly"
+    (assembly / "C01" / "overlap_extension").mkdir(parents=True)
+    (assembly / "C01" / "overlap_extension/contigs.fasta").write_text(
+        ">ctg1\n" + "ACGT" * 100 + "\n", encoding="utf-8"
+    )
+    classes = tmp_path / "classes" / "C01"
+    classes.mkdir(parents=True)
+    reads = classes / "reads.fastq"
+    reads.write_text("".join(f"@r{i}\nACGT\n+\nIIII\n" for i in range(3)), encoding="utf-8")
+
+    rows = support.collect_all_support(
+        assembly, tmp_path / "classes", str(stub_minimap2), class_names="C01"
+    )
+    assert [row.class_id for row in rows] == ["C01"]
+
+
+def test_parse_sam_line_skips_zero_position() -> None:
+    """POS=0 的坏行直接跳过，不抛 ValueError。"""
+    assert support._parse_sam_line(_sam_line(0, pos=0)) is None
