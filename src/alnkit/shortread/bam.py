@@ -210,29 +210,45 @@ def split_length_pair_matches(cigarstring: str, supplementary_cigarstring: str) 
 # ------------------------------------------------------------------------------
 def count_mismatches(
     alignment: "pysam.AlignedSegment",
+    mismatch_source: str,
     on_missing_tag: str,
     statistics: Optional[Dict[str, int]] = None,
 ) -> Optional[int]:
-    """读 NM 标签得到错配数（= 错配 + 插入 + 删除碱基总数）。
+    """统计一条比对的错配数。
 
     输入示例:
         alignment.get_tag('NM') = 0                       -> 0
         alignment 无 NM 标签, on_missing_tag='skip'        -> None（调用方丢弃该比对）
         alignment 无 NM 标签, on_missing_tag='error'       -> 抛错退出
-    输出示例: 0 / 1 / None
 
-    说明: 只保留 NM 口径。0.5.0 移除了“由 MD 推导”的历史分支——MD 只数替换、不数 indel，
-          与 NM 不是同一个量（实测 94% 相同，其余全部满足 md ≤ nm；在 max_mismatch 过滤上
-          会多放行 1.4% 的比对），却只影响 reads_info 的行数、不影响位点结果，属于
-          徒增口径分叉的开关。
+    输出示例: 0 / 1 / None
+    说明:
+        nm: 直接读 NM 标签（= 错配 + 插入 + 删除碱基总数），最稳健
+        md: 历史算法 —— 数 MD 标签里的 [ATGC] 字母，若含 '^'（删除）再减去 CIGAR 的删除碱基数
     """
-    if not alignment.has_tag("NM"):
+    if mismatch_source == "nm":
+        if not alignment.has_tag("NM"):
+            if statistics is not None:
+                statistics["drop_missing_tag"] = statistics.get("drop_missing_tag", 0) + 1
+            if on_missing_tag == "error":
+                raise RuntimeError(f"比对缺少 NM 标签: {alignment.query_name}")
+            return None
+        return int(alignment.get_tag("NM"))
+
+    if not alignment.has_tag("MD"):
         if statistics is not None:
             statistics["drop_missing_tag"] = statistics.get("drop_missing_tag", 0) + 1
         if on_missing_tag == "error":
-            raise RuntimeError(f"比对缺少 NM 标签: {alignment.query_name}")
+            raise RuntimeError(f"比对缺少 MD 标签: {alignment.query_name}")
         return None
-    return int(alignment.get_tag("NM"))
+    deletion_base_count = sum(
+        length for operation, length in (alignment.cigartuples or ()) if operation == 2
+    )
+    md_tag = alignment.get_tag("MD")
+    base_letters = re.findall(r"[ATGC]", md_tag)
+    if "^" in md_tag:
+        return len(base_letters) - deletion_base_count
+    return len(base_letters)
 
 
 def has_matching_split_alignment(alignment: "pysam.AlignedSegment") -> bool:

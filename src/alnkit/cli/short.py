@@ -49,8 +49,8 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
             "  注意: reads_info 的 legacy 表头把 stand 与 mapping_quality 合并成一列（11 列），\n"
             "  数据行其实是 12 列——按表头名解析会错位，按位置或用 canonical 表。\n"
             "\n错配来源与 markdup:\n"
-            "  错配数只认 NM 标签（含 indel）；缺 NM 时按 --on-missing-tag 丢弃或报错。\n"
-            "  （0.5.0 移除了 --mismatch-source md：它只数替换、不数 indel，口径与 NM 不同）\n"
+            "  --mismatch-source nm（默认）读 NM；md 用 MD 推导（历史口径）。都不自动回退，\n"
+            "  标签缺失时按 --on-missing-tag 丢弃或报错；--legacy-profile 隐含 md。\n"
             "  markdup 的 FLAG 0x400 与错配统计无关，只决定 dup 两列；用 --check-markdup 核对\n"
             "  标记是否可信（按两端 5' 坐标分组，再用 MD 判断被标 dup 的 read 是否真同序列）。"
         ),
@@ -88,16 +88,11 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         help="结果输出目录，默认当前目录",
     )
     parser.add_argument(
-        "--out-prefix",
-        "--sample-name",  # 0.5.0 之前的旧名，保留作兼容别名
-        dest="out_prefix",
+        "--sample-name",
         action="store",
         default=None,
         metavar="NAME",
-        help=(
-            "输出前缀（所有产物文件名的开头），默认取 BAM 文件名首个 . 之前的部分；"
-            "--sample-name 是等价旧名"
-        ),
+        help="输出前缀（所有产物文件名的开头），默认取 BAM 文件名首个 . 之前的部分",
     )
     parser.add_argument(
         "--query-chr",
@@ -162,6 +157,16 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
     )
     parser.add_argument(
         "--keep-secondary", action="store_true", help="保留 secondary 比对（默认丢弃）"
+    )
+    parser.add_argument(
+        "--mismatch-source",
+        action="store",
+        choices=("nm", "md"),
+        default="nm",
+        help=(
+            "错配数来源：nm=NM 标签（默认）；md=由 MD 推导（历史行为）。"
+            "两者都不自动回退：选 nm 却没有 NM 时按 --on-missing-tag 丢弃或报错"
+        ),
     )
     parser.add_argument(
         "--on-missing-tag",
@@ -230,7 +235,7 @@ def run_scan(args: argparse.Namespace) -> int:
         bam_glob=args.bam_glob,
         no_recursive=args.no_recursive,
         out_dir=args.out_dir,
-        out_prefix=args.out_prefix,
+        sample_name=args.sample_name,
         query_chr=args.query_chr,
         insert_chrs=args.insert_chrs,
         insert_origin_policy=args.insert_origin_policy,
@@ -240,6 +245,7 @@ def run_scan(args: argparse.Namespace) -> int:
         max_softclip_blocks=args.max_softclip_blocks,
         min_clip_length=args.min_clip_length,
         keep_secondary=args.keep_secondary,
+        mismatch_source=args.mismatch_source,
         on_missing_tag=args.on_missing_tag,
         no_split_match=args.no_split_match,
         no_candidate_gate=args.no_candidate_gate,

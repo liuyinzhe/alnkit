@@ -3,31 +3,6 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 SemVer。
 条目按功能 ID（`A*` 三代 / `B*` 二代 / `C*` 绘图 / `D*` 公共层）分组，ID 定义见规划文档。
 
-## [0.5.0] - 2026-11-03
-
-### Changed
-
-- `short scan` 的 `--sample-name` 更名为 **`--out-prefix`**（更贴合它的实际作用：所有产物
-  文件名的前缀，而不是样本身份）。旧名保留为等价别名，旧脚本不用改；两者同时出现会被
-  argparse 报错。内部字段与日志也改成"输出前缀"。
-
-### Removed
-
-- `short scan` 的 **`--mismatch-source md`**（以及 `--mismatch-source` 整个参数）：错配数统一
-  只认 `NM` 标签。理由是 MD 推导与 NM **不是同一个量**——MD 只数替换、不数 indel：
-  在私有基准上 45530 条比对的实测结果是 94.09% 相同、其余全部满足 `md ≤ nm`（差值多为 1），
-  `--max-mismatch 3` 下 MD 会多放行 1.4% 的比对；而端到端的 `Insert_Position` /
-  `Insert_Interference` / `sites.canonical` 三张表**逐字节不变**，只有 `reads_info` 多 52 行
-  （2%）。即这个开关只分叉口径、不改变结论，删掉更安全。`--legacy-profile` 仍等于
-  "legacy 坐标 + legacy 归属"，不再连带切换错配口径。
-
-### Added
-
-- `short scan` 新增 **`--check-markdup`**（默认关，只写日志、不改产物）：按 read 的**两端 5′
-  坐标**（去 clip）分组核对 `samtools markdup` 的 `FLAG 0x400`——一组里恰好 1 条未标记才算正常，
-  据此报出"整组漏标 / 整组全标 / 单条被标 dup"三种可疑情形；再用 MD 错配模式判断被标 dup 的
-  read 是否真的与原件同序列（不同则只是位置巧合，属 markdup 的正常行为）。
-
 ## [0.4.0] - 2026-11-02
 
 ### Added
@@ -184,8 +159,7 @@
 - 文档骨架：`docs/index.md`、`docs/install.md`、`docs/quickstart.md`、`docs/concepts/coordinates.md`、
   `docs/concepts/tables.md`（由 `core.tables` 生成）。
 
-[Unreleased]: https://github.com/liuyinzhe/alnkit/compare/v0.5.0...HEAD
-[0.5.0]: https://github.com/liuyinzhe/alnkit/compare/v0.4.0...v0.5.0
+[Unreleased]: https://github.com/liuyinzhe/alnkit/compare/v0.4.0...HEAD
 [0.4.0]: https://github.com/liuyinzhe/alnkit/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/liuyinzhe/alnkit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/liuyinzhe/alnkit/releases/tag/v0.2.0

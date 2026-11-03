@@ -78,8 +78,10 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
     # --legacy-profile 展开为各个历史开关
     legacy_coordinates = settings.legacy_coordinates or settings.legacy_profile
     insert_origin_policy = settings.insert_origin_policy
+    mismatch_source = settings.mismatch_source
     if settings.legacy_profile:
         insert_origin_policy = "legacy"
+        mismatch_source = "md"
 
     if not settings.query_chr:
         raise UsageError("必须指定 --query-chr（本次要出结果的外源插入序列名）")
@@ -112,20 +114,21 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
 
     if not bam_paths:
         raise UsageError(f"未找到 BAM 文件：目录={settings.bam_dir} 通配符={settings.bam_glob}")
-    if len(bam_paths) > 1 and settings.out_prefix:
-        raise UsageError("指定了多个 BAM 时不能使用 --out-prefix（前缀由每个 BAM 文件名推导）")
+    if len(bam_paths) > 1 and settings.sample_name:
+        raise UsageError("指定了多个 BAM 时不能使用 --sample-name（样本名由每个 BAM 文件名推导）")
 
     if settings.bam_threads < 1:
         raise UsageError("--bam-threads 必须 >= 1")
 
     return RuntimeConfig(
         bam_paths=bam_paths,
-        out_prefix=settings.out_prefix,
+        sample_name=settings.sample_name,
         output_directory=settings.out_dir,
         query_chromosome=settings.query_chr,
         insert_chromosomes=insert_chromosomes,
         insert_origin_policy=insert_origin_policy,
         merge_window_bp=settings.merge_window_bp,
+        mismatch_source=mismatch_source,
         on_missing_tag=settings.on_missing_tag,
         minimum_mapping_quality=settings.min_mapq,
         maximum_mismatch_count=settings.max_mismatch,
@@ -205,10 +208,10 @@ def process_single_bam(bam_path: Path, config: RuntimeConfig) -> Dict[str, int]:
                             （由 main 转成退出码 2）
         RuntimeError:       BAM 不存在/损坏（由 main 转成退出码 1）
     """
-    sample_name = config.out_prefix or bam_path.name.split(".")[0]
+    sample_name = config.sample_name or bam_path.name.split(".")[0]
     statistics = create_statistics()
 
-    logging.info("处理 BAM: %s（输出前缀 %s）", bam_path, sample_name)
+    logging.info("处理 BAM: %s（样本名 %s）", bam_path, sample_name)
     try:
         with pysam.AlignmentFile(str(bam_path), "rb", threads=config.bam_threads) as alignment_file:
             validate_reference_names(alignment_file, config, bam_path)
@@ -348,7 +351,7 @@ def run(settings: ScanSettings) -> dict[str, object]:
 
     # 样本名由 BAM 文件名首个 "." 之前推导（历史口径）。两个 BAM 推出同名时会互相覆盖结果，
     # 所以在动手写文件之前先拦掉。
-    derived = [config.out_prefix or path.name.split(".")[0] for path in config.bam_paths]
+    derived = [config.sample_name or path.name.split(".")[0] for path in config.bam_paths]
     duplicated = sorted({name for name in derived if derived.count(name) > 1})
     if duplicated:
         raise UsageError(
@@ -714,12 +717,13 @@ def run_self_test() -> None:
     )
     consensus_config = RuntimeConfig(
         bam_paths=[],
-        out_prefix=None,
+        sample_name=None,
         output_directory=Path("."),
         query_chromosome="target_ref",
         insert_chromosomes=("homolog_ref", "target_ref"),
         insert_origin_policy="consensus",
         merge_window_bp=10,
+        mismatch_source="nm",
         on_missing_tag="skip",
         minimum_mapping_quality=20,
         maximum_mismatch_count=3,
