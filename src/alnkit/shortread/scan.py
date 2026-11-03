@@ -17,7 +17,9 @@ from .bam import (
     measure_cigar_block_and_clip,
     parse_xa_entry,
     read_is_duplicate,
+    check_markdup_consistency,
     report_duplicate_flags,
+    report_markdup_consistency,
     warn_about_alignment_features,
 )
 
@@ -139,6 +141,7 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
         use_candidate_gate=not settings.no_candidate_gate and insert_origin_policy != "legacy",
         exclude_duplicates=not settings.no_duplicate_filter,
         require_duplicate_flags=settings.require_dup_flags,
+        check_markdup=settings.check_markdup,
         bam_threads=settings.bam_threads,
     )
 
@@ -229,6 +232,8 @@ def process_single_bam(bam_path: Path, config: RuntimeConfig) -> Dict[str, int]:
 
     warn_about_alignment_features(statistics, bam_path)
     report_duplicate_flags(statistics, bam_path, config.require_duplicate_flags)
+    if config.check_markdup:
+        report_markdup_consistency(check_markdup_consistency(bam_path), bam_path)
     if config.use_candidate_gate:
         logging.info(
             "扫描: 候选 read=%d 候选比对=%d（pass1 %.2fs / pass2 %.2fs）",
@@ -730,6 +735,7 @@ def run_self_test() -> None:
         use_candidate_gate=True,
         exclude_duplicates=True,
         require_duplicate_flags=False,
+        check_markdup=False,
         bam_threads=1,
     )
     ambiguous_read = ReadEvidence(

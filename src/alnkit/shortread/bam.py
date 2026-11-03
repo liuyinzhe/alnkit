@@ -432,6 +432,202 @@ def read_is_duplicate(records: Sequence[AlignmentRecord]) -> bool:
     return any(record.is_duplicate for record in records)
 
 
+def _five_prime(alignment: "pysam.AlignedSegment") -> Tuple[str, str, int]:
+    """比对的 5' 端（去 clip）：markdup 判重就看这个坐标 + 链方向。"""
+    leading = trailing = 0
+    if alignment.cigartuples:
+        first_op, first_len = alignment.cigartuples[0]
+        last_op, last_len = alignment.cigartuples[-1]
+        if first_op in (4, 5):  # S / H
+            leading = first_len
+        if last_op in (4, 5):
+            trailing = last_len
+    if alignment.is_reverse:
+        return (alignment.reference_name or "", "-", (alignment.reference_end or 0) + trailing)
+    return (alignment.reference_name or "", "+", (alignment.reference_start or 0) - leading)
+
+
+def duplicate_signature(
+    first: "pysam.AlignedSegment", second: Optional["pysam.AlignedSegment"] = None
+) -> Tuple[str, ...]:
+    """生成 markdup 口径的判重签名（双端取两端 5' 坐标，单端取一端）。
+
+    输入示例:
+        first  = read1: insertA '+' 1346；second = read2: insertA '-' 3520
+    输出示例: ('pair', 'insertA', '+', 1346, 'insertA', '-', 3520)
+
+    说明: 必须成对——只看一条 read 的 5' 坐标会把"位置相同但 mate 不同"的不同分子
+          算成一组（实测这样会把 65% 的组误判为"标记不一致"）。
+    """
+    if second is None:
+        return ("single",) + _five_prime(first)
+    ends = sorted([_five_prime(first), _five_prime(second)], key=str)
+    return ("pair",) + ends[0] + ends[1]
+
+
+def _mismatch_pattern(alignment: "pysam.AlignedSegment") -> Optional[str]:
+    """错配模式（MD 优先，退回 NM 计数）；都没有时返回 None。"""
+    if alignment.has_tag("MD"):
+        return "MD:" + str(alignment.get_tag("MD"))
+    if alignment.has_tag("NM"):
+        return "NM:" + str(int(alignment.get_tag("NM")))
+    return None
+
+
+def check_markdup_consistency(bam_path: Path, max_reads: int = 5_000_000) -> Dict[str, int]:
+    """核对 markdup 标记：坐标判“漏标/多标”，MD 判“标出来的重复是否真的同序列”。
+
+    输入示例: sampleA.markdup.bam（25063 条 primary 比对，4373 条 FLAG 0x400）
+    输出示例:
+        {'reads_checked': 9774, 'groups_total': 1807, 'groups_ok': 1803,
+         'groups_all_flagged': 2, 'groups_multi_unflagged': 2, 'flagged_single_reads': 4,
+         'duplicates_checked': 4370, 'duplicates_seq_identical': 4300,
+         'duplicates_seq_different': 70, 'reads_without_md': 0, 'truncated': 0}
+
+    说明:
+        * 按 :func:`duplicate_signature`（两端 5' 坐标）分组——这正是 markdup 的口径；
+        * **一组里恰好 1 条未标记**才算正常（保留原件，其余标 dup）：
+          - `groups_all_flagged`：整组都被标 dup → 没有保留原件；
+          - `groups_multi_unflagged`：同组 ≥2 条未标记 → 漏标（或该组根本没做 markdup）；
+        * MD 用于第二层核对：被标 dup 的 read 若与同组原件的 MD 模式不同，说明两条只是
+          位置巧合、并非同一分子（markdup 按位置判定，这属于正常现象，只作提示）。
+        * 超过 ``max_reads`` 条 primary 比对时停止并置 ``truncated=1``（超大 BAM 防爆内存）。
+    """
+    ends: Dict[str, Dict[str, "pysam.AlignedSegment"]] = {}
+    statistics = {
+        "reads_checked": 0,
+        "groups_total": 0,
+        "groups_ok": 0,
+        "groups_all_flagged": 0,
+        "groups_multi_unflagged": 0,
+        "flagged_single_reads": 0,
+        "duplicates_checked": 0,
+        "duplicates_seq_identical": 0,
+        "duplicates_seq_different": 0,
+        "reads_without_md": 0,
+        "truncated": 0,
+    }
+    with pysam.AlignmentFile(str(bam_path), "rb") as alignment_file:
+        for alignment in alignment_file.fetch(until_eof=True):
+            if alignment.is_unmapped or alignment.is_secondary or alignment.is_supplementary:
+                continue
+            statistics["reads_checked"] += 1
+            if not alignment.has_tag("MD"):
+                statistics["reads_without_md"] += 1
+            slot = ends.setdefault(alignment.query_name, {})
+            if alignment.is_read1:
+                slot["r1"] = alignment
+            elif alignment.is_read2:
+                slot["r2"] = alignment
+            else:
+                slot["se"] = alignment
+            if statistics["reads_checked"] >= max_reads:
+                statistics["truncated"] = 1
+                break
+
+    groups: Dict[Tuple[str, ...], List[Tuple[bool, Optional[str]]]] = {}
+    for slot in ends.values():
+        if "r1" in slot and "r2" in slot:
+            key = duplicate_signature(slot["r1"], slot["r2"])
+            flagged = slot["r1"].is_duplicate or slot["r2"].is_duplicate
+            pattern = _mismatch_pattern(slot["r1"])
+        else:
+            alignment = slot.get("r1") or slot.get("r2") or slot.get("se")
+            if alignment is None:
+                continue
+            key = duplicate_signature(alignment)
+            flagged = alignment.is_duplicate
+            pattern = _mismatch_pattern(alignment)
+        groups.setdefault(key, []).append((flagged, pattern))
+
+    for members in groups.values():
+        if len(members) == 1:
+            if members[0][0]:
+                statistics["flagged_single_reads"] += 1
+            continue
+        statistics["groups_total"] += 1
+        unflagged = [pattern for flagged, pattern in members if not flagged]
+        flagged_patterns = [pattern for flagged, pattern in members if flagged]
+        if not unflagged:
+            statistics["groups_all_flagged"] += 1
+        elif len(unflagged) == 1:
+            statistics["groups_ok"] += 1
+        else:
+            statistics["groups_multi_unflagged"] += 1
+        original = unflagged[0] if len(unflagged) == 1 else None
+        for pattern in flagged_patterns:
+            statistics["duplicates_checked"] += 1
+            if original is not None and pattern is not None and pattern == original:
+                statistics["duplicates_seq_identical"] += 1
+            elif original is not None and pattern is not None:
+                statistics["duplicates_seq_different"] += 1
+    return statistics
+
+
+def report_markdup_consistency(statistics: Dict[str, int], bam_path: Path) -> None:
+    """把 markdup 核对结果打成日志；只有真的可疑时才 WARNING。
+
+    输入示例: {'reads_checked': 9774, 'groups_total': 1807, 'groups_ok': 1803, ...}
+    输出示例（日志）:
+        INFO    markdup 核对: 9774 条 read / 1807 组同坐标，正常组 1803（恰好 1 条原件），
+                全部被标 dup 2 组，同组多条未标记 2 组，单条被标 dup 4
+        INFO    markdup 序列核对: 4370 条 dup 中 4300 条与原件的 MD 错配模式一致
+    """
+    logging.info(
+        "markdup 核对: %d 条 read / %d 组同坐标，正常组 %d（恰好 1 条原件），"
+        "全部被标 dup %d 组，同组多条未标记 %d 组，单条被标 dup %d",
+        statistics["reads_checked"],
+        statistics["groups_total"],
+        statistics["groups_ok"],
+        statistics["groups_all_flagged"],
+        statistics["groups_multi_unflagged"],
+        statistics["flagged_single_reads"],
+    )
+    duplicates = statistics["duplicates_checked"]
+    if duplicates:
+        logging.info(
+            "markdup 序列核对: %d 条 dup 中 %d 条与原件的 MD 错配模式一致"
+            "（%d 条位置巧合、并非同一分子；markdup 按 5' 位置判定，属正常）",
+            duplicates,
+            statistics["duplicates_seq_identical"],
+            statistics["duplicates_seq_different"],
+        )
+    if statistics["groups_multi_unflagged"] and not duplicates:
+        # 一条 dup 标记都没有：这是“没做 markdup”，不是“漏标”，交给 report_duplicate_flags 报
+        logging.info(
+            "markdup 核对: 该 BAM 没有任何 FLAG 0x400，%d 组同坐标 read 全未标记（未做 markdup）",
+            statistics["groups_multi_unflagged"],
+        )
+    elif statistics["groups_multi_unflagged"]:
+        logging.warning(
+            "markdup 核对: %d 组 read 的两端 5' 坐标完全相同，却有 ≥2 条没标 FLAG 0x400"
+            "（%s）：这些组漏标了，dup 两列会偏低；未做 markdup 时请先 samtools markdup",
+            statistics["groups_multi_unflagged"],
+            bam_path.name,
+        )
+    if statistics["groups_all_flagged"]:
+        logging.warning(
+            "markdup 核对: %d 组 read 全部被标 dup（%s）：没有保留原件，dup 计数偏高",
+            statistics["groups_all_flagged"],
+            bam_path.name,
+        )
+    if statistics["flagged_single_reads"] > max(5, statistics["groups_total"] // 10):
+        logging.warning(
+            "markdup 核对: %d 条 read 被标 dup 但两端坐标独一无二（%s）：可能过度标记，"
+            "或用了与这里不同的判重口径",
+            statistics["flagged_single_reads"],
+            bam_path.name,
+        )
+    if statistics["reads_without_md"]:
+        logging.warning(
+            "markdup 核对: %d 条比对没有 MD 标签，序列层核对跳过这部分（%s）",
+            statistics["reads_without_md"],
+            bam_path.name,
+        )
+    if statistics["truncated"]:
+        logging.warning("markdup 核对: 比对条数超过上限，只核对了前一部分（%s）", bam_path.name)
+
+
 def warn_about_alignment_features(statistics: Dict[str, int], bam_path: Path) -> None:
     """检查这个 BAM 的比对特征是否满足脚本要求（SA / soft clip / 补充比对 / XA），不满足就告警。
 

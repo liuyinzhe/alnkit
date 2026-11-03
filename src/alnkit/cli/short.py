@@ -47,7 +47,12 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
             "\n产物:\n"
             "  三张 legacy .xls（列名与旧脚本一致）+ <sample>.sites.canonical.tsv（机器接口）。\n"
             "  注意: reads_info 的 legacy 表头把 stand 与 mapping_quality 合并成一列（11 列），\n"
-            "  数据行其实是 12 列——按表头名解析会错位，按位置或用 canonical 表。"
+            "  数据行其实是 12 列——按表头名解析会错位，按位置或用 canonical 表。\n"
+            "\n错配来源与 markdup:\n"
+            "  --mismatch-source nm（默认）读 NM；md 用 MD 推导（历史口径）。都不自动回退，\n"
+            "  标签缺失时按 --on-missing-tag 丢弃或报错；--legacy-profile 隐含 md。\n"
+            "  markdup 的 FLAG 0x400 与错配统计无关，只决定 dup 两列；用 --check-markdup 核对\n"
+            "  标记是否可信（按两端 5' 坐标分组，再用 MD 判断被标 dup 的 read 是否真同序列）。"
         ),
     )
     parser.add_argument(
@@ -87,7 +92,7 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         action="store",
         default=None,
         metavar="NAME",
-        help="样本名（输出文件名前缀），默认取 BAM 文件名首个 . 之前的部分",
+        help="输出前缀（所有产物文件名的开头），默认取 BAM 文件名首个 . 之前的部分",
     )
     parser.add_argument(
         "--query-chr",
@@ -158,7 +163,10 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         action="store",
         choices=("nm", "md"),
         default="nm",
-        help="错配数来源：nm=NM 标签（默认）；md=由 MD 推导（历史行为）",
+        help=(
+            "错配数来源：nm=NM 标签（默认）；md=由 MD 推导（历史行为）。"
+            "两者都不自动回退：选 nm 却没有 NM 时按 --on-missing-tag 丢弃或报错"
+        ),
     )
     parser.add_argument(
         "--on-missing-tag",
@@ -181,6 +189,14 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         "--no-duplicate-filter",
         action="store_true",
         help="保留被 markdup 标记为重复的 read 作为证据（默认剔除，只写 dup 列）",
+    )
+    parser.add_argument(
+        "--check-markdup",
+        action="store_true",
+        help=(
+            "核对 markdup 标记是否可信：把 read 按「比对坐标 + 错配数」分组，报告"
+            "全未标记组（markdup 没做/不完整）、标记不一致组、以及单条被标 dup 的 read"
+        ),
     )
     parser.add_argument(
         "--require-dup-flags",
@@ -235,6 +251,7 @@ def run_scan(args: argparse.Namespace) -> int:
         no_candidate_gate=args.no_candidate_gate,
         no_duplicate_filter=args.no_duplicate_filter,
         require_dup_flags=args.require_dup_flags,
+        check_markdup=args.check_markdup,
         bam_threads=args.bam_threads,
         legacy_coordinates=args.legacy_coordinates,
         legacy_profile=args.legacy_profile,

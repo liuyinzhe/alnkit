@@ -5,7 +5,7 @@
 ## 用法
 
 ```bash
-alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [--out-dir …] [--sample-name …] [--query-chr …] [--insert-chrs …] [--insert-origin-policy …] [--merge-window-bp …] [--min-mapq …] [--max-mismatch …] [--max-softclip-blocks …] [--min-clip-length …] [--mismatch-source …] [--on-missing-tag …] [--bam-threads …] [--no-recursive] [--keep-secondary] [--no-split-match] [--no-candidate-gate] [--no-duplicate-filter] [--require-dup-flags] [--legacy-coordinates] [--legacy-profile] [--self-test]
+alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [--out-dir …] [--sample-name …] [--query-chr …] [--insert-chrs …] [--insert-origin-policy …] [--merge-window-bp …] [--min-mapq …] [--max-mismatch …] [--max-softclip-blocks …] [--min-clip-length …] [--mismatch-source …] [--on-missing-tag …] [--bam-threads …] [--no-recursive] [--keep-secondary] [--no-split-match] [--no-candidate-gate] [--no-duplicate-filter] [--check-markdup] [--require-dup-flags] [--legacy-coordinates] [--legacy-profile] [--self-test]
 ```
 
 ## 参数
@@ -17,7 +17,7 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
 | `--bam-glob` PATTERN | 否 | `*.sorted.bam` | 在 --bam-dir 下匹配 BAM 的通配符，默认 *.sorted.bam |
 | `--no-recursive` | 否 | 关 | 不递归子目录（默认递归） |
 | `--out-dir` DIR | 否 | `当前目录` | 结果输出目录，默认当前目录 |
-| `--sample-name` NAME | 否 | — | 样本名（输出文件名前缀），默认取 BAM 文件名首个 . 之前的部分 |
+| `--sample-name` NAME | 否 | — | 输出前缀（所有产物文件名的开头），默认取 BAM 文件名首个 . 之前的部分 |
 | `--query-chr` NAME | 否 | — | 本次要出结果的外源插入序列名（必填，除非 --self-test） |
 | `--insert-chrs` NAME1,NAME2,... | 否 | — | 参考序列里全部外源/同源序列名，逗号分隔；默认只含 --query-chr |
 | `--insert-origin-policy` | 否 | `owned` | 共有 read 的区分策略：owned（默认）/owned-strict/lenient/consensus/legacy（可选：`owned`, `owned-strict`, `lenient`, `consensus`, `legacy`） |
@@ -27,11 +27,12 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
 | `--max-softclip-blocks` INT | 否 | `1` | soft clip 段数 > 该值则丢弃，默认 1 |
 | `--min-clip-length` INT | 否 | `0` | 作为断点证据时要求的最小 soft clip 长度，默认 0（不限制） |
 | `--keep-secondary` | 否 | 关 | 保留 secondary 比对（默认丢弃） |
-| `--mismatch-source` | 否 | `nm` | 错配数来源：nm=NM 标签（默认）；md=由 MD 推导（历史行为）（可选：`nm`, `md`） |
+| `--mismatch-source` | 否 | `nm` | 错配数来源：nm=NM 标签（默认）；md=由 MD 推导（历史行为）。两者都不自动回退：选 nm 却没有 NM 时按 --on-missing-tag 丢弃或报错（可选：`nm`, `md`） |
 | `--on-missing-tag` | 否 | `skip` | 缺少 NM/MD 标签时：skip=丢弃该比对（默认）；error=报错（可选：`skip`, `error`） |
 | `--no-split-match` | 否 | 关 | 关闭「目标序列上要求存在等长 split 比对」的校验（默认开启） |
 | `--no-candidate-gate` | 否 | 关 | 关闭候选 read 闸门（等价 2.4.0 全量逐条处理）；legacy 策略下自动关闭 |
 | `--no-duplicate-filter` | 否 | 关 | 保留被 markdup 标记为重复的 read 作为证据（默认剔除，只写 dup 列） |
+| `--check-markdup` | 否 | 关 | 核对 markdup 标记是否可信：把 read 按「比对坐标 + 错配数」分组，报告全未标记组（markdup 没做/不完整）、标记不一致组、以及单条被标 dup 的 read |
 | `--require-dup-flags` | 否 | 关 | BAM 里没有任何 FLAG 0x400（未做 markdup）时报错退出（退出码 2） |
 | `--bam-threads` INT | 否 | `1` | BAM 解压线程数，默认 1；大文件可调到 2-4 |
 | `--legacy-coordinates` | 否 | 关 | 使用历史的 M 块选取规则（取最后一个 M 块） |
@@ -67,6 +68,14 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
   三张 legacy .xls（列名与旧脚本一致）+ <sample>.sites.canonical.tsv（机器接口）。
   注意: reads_info 的 legacy 表头把 stand 与 mapping_quality 合并成一列（11 列），
   数据行其实是 12 列——按表头名解析会错位，按位置或用 canonical 表。
+```
+
+```text
+错配来源与 markdup:
+  --mismatch-source nm（默认）读 NM；md 用 MD 推导（历史口径）。都不自动回退，
+  标签缺失时按 --on-missing-tag 丢弃或报错；--legacy-profile 隐含 md。
+  markdup 的 FLAG 0x400 与错配统计无关，只决定 dup 两列；用 --check-markdup 核对
+  标记是否可信（按两端 5' 坐标分组，再用 MD 判断被标 dup 的 read 是否真同序列）。
 ```
 
 ## 退出码

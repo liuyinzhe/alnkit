@@ -300,3 +300,140 @@ def test_split_other_inserts_handles_ties_and_empty() -> None:
     # 只有 query 命中 → 没有竞争者
     assert _split_other_inserts({"q_ref": {"r1"}}, "q_ref") == ("-", [])
     assert _split_other_inserts({}, "q_ref") == ("-", [])
+
+
+### markdup 核对（坐标 + MD） ###
+
+
+def _write_bam(path: Path, reads, contig: str = "ctg1", length: int = 10_000) -> Path:
+    """写一个最小 BAM：reads = [(name, start, is_read1, is_duplicate, MD), ...]。"""
+    import pysam
+
+    header = {"HD": {"VN": "1.6", "SO": "coordinate"}, "SQ": [{"SN": contig, "LN": length}]}
+    with pysam.AlignmentFile(str(path), "wb", header=header) as out:
+        for name, start, is_read1, is_duplicate, md in sorted(reads, key=lambda item: item[1]):
+            record = pysam.AlignedSegment()
+            record.query_name = name
+            record.query_sequence = "A" * 100
+            record.flag = (64 if is_read1 else 128) | (1024 if is_duplicate else 0)
+            record.reference_id = 0
+            record.reference_start = start
+            record.mapping_quality = 60
+            record.cigartuples = [(0, 100)]
+            record.query_qualities = pysam.qualitystring_to_array("I" * 100)
+            record.set_tag("MD", md)
+            out.write(record)
+    return path
+
+
+def test_duplicate_signature_uses_both_ends() -> None:
+    """双端签名必须把两端 5' 坐标都放进去，否则不同分子会被误判成一组。"""
+    from alnkit.shortread.bam import duplicate_signature
+
+    bam = _write_bam(
+        Path(os.environ.get("PYTEST_TMPDIR", "/tmp")) / "sig.bam",
+        [("r1", 100, True, False, "100"), ("r1", 900, False, False, "100")],
+    )
+    import pysam
+
+    with pysam.AlignmentFile(str(bam)) as handle:
+        records = list(handle.fetch(until_eof=True))
+    first = next(record for record in records if record.is_read1)
+    second = next(record for record in records if record.is_read2)
+    signature = duplicate_signature(first, second)
+    assert signature[0] == "pair"
+    assert signature[1:] == ("ctg1", "+", 100, "ctg1", "+", 900)
+
+
+def test_check_markdup_consistency_healthy(tmp_path: Path) -> None:
+    """正常 markdup：每组恰好 1 条未标记；MD 一致时计入 seq_identical。"""
+    from alnkit.shortread.bam import check_markdup_consistency
+
+    bam = _write_bam(
+        tmp_path / "ok.bam",
+        [
+            ("a", 100, True, False, "100"),
+            ("a", 900, False, False, "100"),
+            ("b", 100, True, True, "100"),
+            ("b", 900, False, True, "100"),
+            ("c", 100, True, True, "100"),
+            ("c", 900, False, True, "100"),
+        ],
+    )
+    statistics = check_markdup_consistency(bam)
+    assert statistics["groups_total"] == 1
+    assert statistics["groups_ok"] == 1
+    assert statistics["groups_multi_unflagged"] == 0
+    assert statistics["duplicates_checked"] == 2
+    assert statistics["duplicates_seq_identical"] == 2
+
+
+def test_check_markdup_consistency_detects_missing_markdup(tmp_path: Path) -> None:
+    """没有 FLAG 0x400 时，整组都未标记 → 应报 groups_multi_unflagged。"""
+    from alnkit.shortread.bam import check_markdup_consistency
+
+    bam = _write_bam(
+        tmp_path / "nodupe.bam",
+        [
+            ("a", 100, True, False, "100"),
+            ("a", 900, False, False, "100"),
+            ("b", 100, True, False, "100"),
+            ("b", 900, False, False, "100"),
+        ],
+    )
+    statistics = check_markdup_consistency(bam)
+    assert statistics["groups_total"] == 1
+    assert statistics["groups_ok"] == 0
+    assert statistics["groups_multi_unflagged"] == 1
+    assert statistics["duplicates_checked"] == 0
+
+
+def test_check_markdup_reports_sequence_difference(tmp_path: Path) -> None:
+    """MD 模式不同 → 位置巧合而非同一分子，计入 seq_different 但不算错误。"""
+    from alnkit.shortread.bam import check_markdup_consistency
+
+    bam = _write_bam(
+        tmp_path / "md.bam",
+        [
+            ("a", 100, True, False, "100"),
+            ("a", 900, False, False, "100"),
+            ("b", 100, True, True, "40A59"),
+            ("b", 900, False, True, "40A59"),
+        ],
+    )
+    statistics = check_markdup_consistency(bam)
+    assert statistics["groups_ok"] == 1
+    assert statistics["duplicates_checked"] == 1
+    assert statistics["duplicates_seq_different"] == 1
+
+
+def test_scan_cli_accepts_check_markdup(tmp_path: Path) -> None:
+    """--check-markdup 是纯日志功能，不改变任何产物集合。"""
+    bam = _write_bam(
+        tmp_path / "sampleA.bam",
+        [
+            ("a", 100, True, False, "60S40M"),
+            ("a", 900, False, False, "60S40M"),
+            ("b", 100, True, True, "60S40M"),
+            ("b", 900, False, True, "60S40M"),
+        ],
+    )
+    out_plain, out_check = tmp_path / "plain", tmp_path / "check"
+    for out, extra in ((out_plain, []), (out_check, ["--check-markdup"])):
+        code = main(
+            [
+                "short",
+                "scan",
+                "--bam",
+                str(bam),
+                "--query-chr",
+                "ctg1",
+                "--insert-chrs",
+                "ctg1",
+                "--out-dir",
+                str(out),
+                *extra,
+            ]
+        )
+        assert code == 0
+    assert output_files(out_plain) == output_files(out_check)

@@ -101,6 +101,7 @@ class RuntimeConfig(NamedTuple):
     use_candidate_gate: bool
     exclude_duplicates: bool
     require_duplicate_flags: bool
+    check_markdup: bool
     bam_threads: int
 
 
@@ -129,6 +130,7 @@ class ScanSettings:
     no_candidate_gate: bool = False
     no_duplicate_filter: bool = False
     require_dup_flags: bool = False
+    check_markdup: bool = False
     bam_threads: int = 1
     legacy_coordinates: bool = False
     legacy_profile: bool = False
