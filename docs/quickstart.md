@@ -45,6 +45,33 @@ alnkit short scan --bam-dir ./bams --query-chr target_ref \
 + `<sample>.sites.canonical.tsv`（机器接口：`insert_pos_1based` / `insert_pos_0based` /
 `insert_boundary_0based` 三列并列，恒等式由测试守住）。
 
+### 参数怎么选（推荐做法）
+
+| 参数 | 建议 | 为什么 |
+|---|---|---|
+| `--merge-window-bp` | **保持小值（10–50）** | 它只该吸收 **clip 端点抖动（几个 bp）**。放大到几百 bp 会把**同一个整合事件的两个断点**（例如插入同时伴随 230 bp 缺失，左断点 73,520,999、右断点 73,521,229）并成一行，丢掉结构信息 |
+| `--min-sr-support` | 测序深度够时用 **2** | 降噪应该靠"支持数"，不是靠合并窗口。SR=1 的位点多为旁系同源/比对噪声 |
+| `--min-clip-length` | **一般保持 0** | 它会把真位点的支持 read 一起削掉（同一批 read 的 clip 可能较短），不适合降噪 |
+| `--reference-fasta` 或 `--homology-bed` | 有同源外源时**务必给** | 外源与基因组内源序列同源时（如 GLP1R-FLAG vs 内源 GLP1R，98.8%），内源位点的 SR/PESR 同样很高，只能靠 `site_homology.tsv` 区分 |
+
+```bash
+alnkit short scan --bam sample.markdup.bam \
+    --query-chr target_ref --insert-chrs decoy_ref,homolog_ref,target_ref \
+    --merge-window-bp 10 --min-sr-support 2 \
+    --reference-fasta hg38i.fa \
+    --homology-bed known_homologs.bed \
+    --out-dir out
+```
+
+### 怎么读结果（人工判断，不自动剔除）
+
+1. 先看 `sites.canonical.tsv` 的 `n_sr` / `n_pesr`：真位点通常支撑数比邻居高一个量级；
+2. 再看 `site_homology.tsv` 的 `is_homology_site`：`yes` 的位点先怀疑是内源同源（若该外源本就
+   含内源片段）；`no` 的位点是候选整合位点；
+3. 两个相距 ~100–1000 bp 且 clip 方向相反的高支持位点，往往是**同一次整合的左右断点**
+   （可能伴随小缺失），不要合并调用；
+4. 低支持（1–2 条）又落在外源同源区附近的位点，先在 IGV 上看 clip 方向与断点是否齐平再定。
+
 ## 5. 三代断点→类→组装→落点
 
 ```bash
