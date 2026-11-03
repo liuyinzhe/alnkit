@@ -54,6 +54,23 @@
 | 10 | `nearest_other_insert` | — | 除 query 外、支持该位点 read 命中最多的插入片段（并列取名字小的）；没有其它插入片段命中时填 - |
 | 11 | `other_inserts` | — | 去掉 query 与最近者之后，其余命中过的插入片段，`,` 分隔；无则 - |
 
+## `site_homology`
+
+| # | 列名 | 基准 | 说明 |
+|---|---|---|---|
+| 1 | `sample` | — | 输出前缀（--sample-name） |
+| 2 | `chrom` | — | 位点所在参考序列 |
+| 3 | `insert_pos_1based` | 1-based | 断点左侧碱基的 1-based 坐标（= Insert_Position 列） |
+| 4 | `is_homology_site` | — | yes/no：是否落在一条同源区域里（两侧各放宽 50 bp） |
+| 5 | `n_regions` | — | 命中的同源区域个数 |
+| 6 | `region_sources` | — | 命中的来源：insert:<插入名> 或 bed:<名字>，多个用分号连接 |
+| 7 | `best_region_chrom` | — | 最可信的同源区域所在参考序列（无命中写 -） |
+| 8 | `best_region_start_1based` | 1-based | 最可信同源区域的起始（1-based，闭区间） |
+| 9 | `best_region_end_1based` | 1-based | 最可信同源区域的结束（1-based，闭区间） |
+| 10 | `best_region_length_bp` | — | 最可信同源区域的长度（bp） |
+| 11 | `best_region_identity` | — | 回比得到的一致率（0-1，按 cs 标签的真实差异算）；BED 来源写 - |
+| 12 | `best_region_query_coverage` | — | 插入序列被这段区域覆盖的比例（0-1）；BED 来源写 - |
+
 ## `assembly_support`
 
 | # | 列名 | 基准 | 说明 |

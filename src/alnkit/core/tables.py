@@ -81,6 +81,21 @@ COLUMNS: dict[str, tuple[str, ...]] = {
         "nearest_other_insert",
         "other_inserts",
     ),
+    # 同源位点诊断：位点是否落在“与外源同源的基因组区域”里（外源回比 / 已知 BED）
+    "site_homology": (
+        "sample",
+        "chrom",
+        "insert_pos_1based",
+        "is_homology_site",
+        "n_regions",
+        "region_sources",
+        "best_region_chrom",
+        "best_region_start_1based",
+        "best_region_end_1based",
+        "best_region_length_bp",
+        "best_region_identity",
+        "best_region_query_coverage",
+    ),
     # 组装支撑度（A 方案）：把类内 reads 用 minimap2 打回 contig 的可复核证据
     "assembly_support": (
         "class_id",
@@ -151,6 +166,20 @@ COLUMN_DOC: dict[str, dict[str, str]] = {
             "（并列取名字小的）；没有其它插入片段命中时填 -"
         ),
         "other_inserts": "去掉 query 与最近者之后，其余命中过的插入片段，`,` 分隔；无则 -",
+    },
+    "site_homology": {
+        "sample": "输出前缀（--sample-name）",
+        "chrom": "位点所在参考序列",
+        "insert_pos_1based": "断点左侧碱基的 1-based 坐标（= Insert_Position 列）",
+        "is_homology_site": "yes/no：是否落在一条同源区域里（两侧各放宽 50 bp）",
+        "n_regions": "命中的同源区域个数",
+        "region_sources": "命中的来源：insert:<插入名> 或 bed:<名字>，多个用分号连接",
+        "best_region_chrom": "最可信的同源区域所在参考序列（无命中写 -）",
+        "best_region_start_1based": "最可信同源区域的起始（1-based，闭区间）",
+        "best_region_end_1based": "最可信同源区域的结束（1-based，闭区间）",
+        "best_region_length_bp": "最可信同源区域的长度（bp）",
+        "best_region_identity": "回比得到的一致率（0-1，按 cs 标签的真实差异算）；BED 来源写 -",
+        "best_region_query_coverage": "插入序列被这段区域覆盖的比例（0-1）；BED 来源写 -",
     },
     "assembly_support": {
         "class_id": "类 ID（= 目录名）",

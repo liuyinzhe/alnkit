@@ -213,6 +213,49 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         ),
     )
     parser.add_argument(
+        "--reference-fasta",
+        dest="reference_fasta",
+        help=(
+            "含插入序列与基因组的参考 FASTA；给了它就把插入序列回比基因组，"
+            "自动找出“外源同源区”并标注位点（需要 minimap2）"
+        ),
+    )
+    parser.add_argument(
+        "--homology-bed",
+        dest="homology_bed",
+        action="append",
+        default=[],
+        metavar="BED",
+        help="已知的内源同源基因/区域（BED，0-based 半开，可给多次）；与 --reference-fasta 可并用",
+    )
+    parser.add_argument(
+        "--homology-window-bp",
+        dest="homology_window_bp",
+        type=int,
+        default=50000,
+        metavar="INT",
+        help=(
+            "局部回比时位点两侧各取多长（默认 50000 bp）；cDNA 样插入的外显子分散在几十 kb 里，"
+            "窗口太小只能比到单个外显子"
+        ),
+    )
+    parser.add_argument(
+        "--homology-min-identity",
+        dest="homology_min_identity",
+        type=float,
+        default=0.90,
+        metavar="FLOAT",
+        help="回比时认定的最小一致率，默认 0.90",
+    )
+    parser.add_argument(
+        "--homology-min-length",
+        dest="homology_min_length",
+        type=int,
+        default=200,
+        metavar="INT",
+        help="回比时认定的最小比对长度（bp），默认 200（过滤偶然的短命中）",
+    )
+    parser.add_argument(
         "--check-markdup",
         action="store_true",
         help=(
@@ -274,6 +317,11 @@ def run_scan(args: argparse.Namespace) -> int:
         no_duplicate_filter=args.no_duplicate_filter,
         require_dup_flags=args.require_dup_flags,
         check_markdup=args.check_markdup,
+        reference_fasta=Path(args.reference_fasta) if args.reference_fasta else None,
+        homology_bed=tuple(Path(p) for p in args.homology_bed),
+        homology_min_identity=args.homology_min_identity,
+        homology_window_bp=args.homology_window_bp,
+        homology_min_length=args.homology_min_length,
         minimum_site_support=args.min_sr_support,
         interference_scope=args.interference_scope,
         bam_threads=args.bam_threads,

@@ -33,6 +33,13 @@ from .evidence import (
 
 from .interference import collect_homology_hit_chromosomes, determine_interference_sources
 
+from ..longread import support
+from .homology import (
+    annotate_sites,
+    load_bed_regions,
+    local_homology_regions,
+    write_site_homology_table,
+)
 from .merge import (
     cluster_positions_within_window,
     filter_by_minimum_support,
@@ -123,6 +130,12 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
 
     if settings.bam_threads < 1:
         raise UsageError("--bam-threads 必须 >= 1")
+    if settings.reference_fasta is not None and not Path(settings.reference_fasta).is_file():
+        raise UsageError(f"--reference-fasta 不存在：{settings.reference_fasta}")
+    if not 0.0 < settings.homology_min_identity <= 1.0:
+        raise UsageError("--homology-min-identity 必须在 (0, 1] 之间")
+    if settings.homology_min_length < 1:
+        raise UsageError("--homology-min-length 必须 >= 1")
     if settings.minimum_site_support < 1:
         raise UsageError("--min-sr-support 必须 >= 1（1 = 不过滤，保持历史行为）")
 
@@ -150,6 +163,11 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
         check_markdup=settings.check_markdup,
         minimum_site_support=settings.minimum_site_support,
         interference_scope=settings.interference_scope,
+        reference_fasta=settings.reference_fasta,
+        homology_bed=tuple(settings.homology_bed),
+        homology_min_identity=settings.homology_min_identity,
+        homology_min_length=settings.homology_min_length,
+        homology_window_bp=settings.homology_window_bp,
         bam_threads=settings.bam_threads,
     )
 
@@ -312,6 +330,49 @@ def process_single_bam(bam_path: Path, config: RuntimeConfig) -> Dict[str, int]:
     written_interference_rows = write_insert_interference_table(
         interference_path, evidence_by_breakpoint, merged_positions_by_site, config
     )
+
+    # 输出 4（可选）：同源位点诊断 —— 位点是否落在“与外源同源的基因组区域”里
+    written_homology_rows = 0
+    if config.reference_fasta is not None or config.homology_bed:
+        regions = list(load_bed_regions(config.homology_bed))
+        if config.reference_fasta is not None:
+            minimap2 = support.find_minimap2()
+            if minimap2 is None:
+                logging.warning(
+                    "没找到 minimap2，跳过“外源回比基因组”这一步（仍可用 --homology-bed）"
+                )
+            else:
+                regions.extend(
+                    local_homology_regions(
+                        config.reference_fasta,
+                        config.insert_chromosomes,
+                        sorted(evidence_by_breakpoint),
+                        minimap2,
+                        window_bp=config.homology_window_bp,
+                        min_identity=config.homology_min_identity,
+                        min_length=config.homology_min_length,
+                        threads=max(1, config.bam_threads),
+                    )
+                )
+        if regions:
+            hom_path = config.output_directory / f"{sample_name}.site_homology.tsv"
+            written_homology_rows = write_site_homology_table(
+                hom_path,
+                annotate_sites(sorted(evidence_by_breakpoint), regions),
+                sample_name,
+            )
+            statistics["homology_regions"] = len(regions)
+            statistics["homology_sites"] = sum(
+                1
+                for row in annotate_sites(sorted(evidence_by_breakpoint), regions)
+                if row["is_homology_site"] == "yes"
+            )
+            logging.info(
+                "同源位点诊断: %d 段同源区域，%d 个位点落在其中 -> %s",
+                len(regions),
+                statistics["homology_sites"],
+                hom_path,
+            )
 
     statistics["breakpoints_written"] = written_breakpoints
     statistics["canonical_sites_written"] = written_canonical
@@ -761,6 +822,11 @@ def run_self_test() -> None:
         check_markdup=False,
         minimum_site_support=1,
         interference_scope="all",
+        reference_fasta=None,
+        homology_bed=(),
+        homology_min_identity=0.90,
+        homology_min_length=200,
+        homology_window_bp=50000,
         bam_threads=1,
     )
     ambiguous_read = ReadEvidence(

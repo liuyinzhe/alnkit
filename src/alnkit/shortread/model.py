@@ -105,6 +105,11 @@ class RuntimeConfig(NamedTuple):
     check_markdup: bool
     minimum_site_support: int
     interference_scope: str
+    reference_fasta: Optional[Path]
+    homology_bed: Tuple[Path, ...]
+    homology_min_identity: float
+    homology_min_length: int
+    homology_window_bp: int
     bam_threads: int
 
 
@@ -136,6 +141,11 @@ class ScanSettings:
     check_markdup: bool = False
     minimum_site_support: int = 1
     interference_scope: str = "all"
+    reference_fasta: Path | None = None
+    homology_bed: tuple[Path, ...] = ()
+    homology_min_identity: float = 0.90
+    homology_min_length: int = 200
+    homology_window_bp: int = 50000
     bam_threads: int = 1
     legacy_coordinates: bool = False
     legacy_profile: bool = False

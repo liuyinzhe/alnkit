@@ -5,7 +5,7 @@
 ## 用法
 
 ```bash
-alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [--out-dir …] [--sample-name …] [--query-chr …] [--insert-chrs …] [--insert-origin-policy …] [--merge-window-bp …] [--min-mapq …] [--max-mismatch …] [--max-softclip-blocks …] [--min-clip-length …] [--mismatch-source …] [--on-missing-tag …] [--min-sr-support …] [--interference-scope …] [--bam-threads …] [--no-recursive] [--keep-secondary] [--no-split-match] [--no-candidate-gate] [--no-duplicate-filter] [--check-markdup] [--require-dup-flags] [--legacy-coordinates] [--legacy-profile] [--self-test]
+alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [--out-dir …] [--sample-name …] [--query-chr …] [--insert-chrs …] [--insert-origin-policy …] [--merge-window-bp …] [--min-mapq …] [--max-mismatch …] [--max-softclip-blocks …] [--min-clip-length …] [--mismatch-source …] [--on-missing-tag …] [--min-sr-support …] [--interference-scope …] [--reference-fasta …] [--homology-bed …] [--homology-window-bp …] [--homology-min-identity …] [--homology-min-length …] [--bam-threads …] [--no-recursive] [--keep-secondary] [--no-split-match] [--no-candidate-gate] [--no-duplicate-filter] [--check-markdup] [--require-dup-flags] [--legacy-coordinates] [--legacy-profile] [--self-test]
 ```
 
 ## 参数
@@ -34,6 +34,11 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
 | `--no-duplicate-filter` | 否 | 关 | 保留被 markdup 标记为重复的 read 作为证据（默认剔除，只写 dup 列） |
 | `--min-sr-support` INT | 否 | `1` | 位点至少要有多少条支持 read（SR+PESR）才输出，默认 1（不过滤，保持历史行为）；设 2–3 可去掉单 read 噪声位点 |
 | `--interference-scope` | 否 | `all` | 同源干扰的判据范围：all=支持 read 命中任何插入序列都算干扰（默认，历史口径，多外源面板下偏灵敏）；other=只算 query 之外的插入（多外源面板更精确）。注意：两者都只比较“插入之间”，无法识别“外源与基因组同源”造成的干扰（可选：`all`, `other`） |
+| `--reference-fasta` | 否 | — | 含插入序列与基因组的参考 FASTA；给了它就把插入序列回比基因组，自动找出“外源同源区”并标注位点（需要 minimap2） |
+| `--homology-bed` BED | 否 | — | 已知的内源同源基因/区域（BED，0-based 半开，可给多次）；与 --reference-fasta 可并用 |
+| `--homology-window-bp` INT | 否 | `50000` | 局部回比时位点两侧各取多长（默认 50000 bp）；cDNA 样插入的外显子分散在几十 kb 里，窗口太小只能比到单个外显子 |
+| `--homology-min-identity` FLOAT | 否 | `0.9` | 回比时认定的最小一致率，默认 0.90 |
+| `--homology-min-length` INT | 否 | `200` | 回比时认定的最小比对长度（bp），默认 200（过滤偶然的短命中） |
 | `--check-markdup` | 否 | 关 | 核对 markdup 标记是否可信：把 read 按「比对坐标 + 错配数」分组，报告全未标记组（markdup 没做/不完整）、标记不一致组、以及单条被标 dup 的 read |
 | `--require-dup-flags` | 否 | 关 | BAM 里没有任何 FLAG 0x400（未做 markdup）时报错退出（退出码 2） |
 | `--bam-threads` INT | 否 | `1` | BAM 解压线程数，默认 1；大文件可调到 2-4 |
