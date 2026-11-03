@@ -5,7 +5,7 @@
 ## 用法
 
 ```bash
-alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [--out-dir …] [--sample-name …] [--query-chr …] [--insert-chrs …] [--insert-origin-policy …] [--merge-window-bp …] [--min-mapq …] [--max-mismatch …] [--max-softclip-blocks …] [--min-clip-length …] [--mismatch-source …] [--on-missing-tag …] [--bam-threads …] [--no-recursive] [--keep-secondary] [--no-split-match] [--no-candidate-gate] [--no-duplicate-filter] [--check-markdup] [--require-dup-flags] [--legacy-coordinates] [--legacy-profile] [--self-test]
+alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [--out-dir …] [--out-prefix …] [--query-chr …] [--insert-chrs …] [--insert-origin-policy …] [--merge-window-bp …] [--min-mapq …] [--max-mismatch …] [--max-softclip-blocks …] [--min-clip-length …] [--on-missing-tag …] [--bam-threads …] [--no-recursive] [--keep-secondary] [--no-split-match] [--no-candidate-gate] [--no-duplicate-filter] [--check-markdup] [--require-dup-flags] [--legacy-coordinates] [--legacy-profile] [--self-test]
 ```
 
 ## 参数
@@ -17,7 +17,7 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
 | `--bam-glob` PATTERN | 否 | `*.sorted.bam` | 在 --bam-dir 下匹配 BAM 的通配符，默认 *.sorted.bam |
 | `--no-recursive` | 否 | 关 | 不递归子目录（默认递归） |
 | `--out-dir` DIR | 否 | `当前目录` | 结果输出目录，默认当前目录 |
-| `--sample-name` NAME | 否 | — | 输出前缀（所有产物文件名的开头），默认取 BAM 文件名首个 . 之前的部分 |
+| `--out-prefix`, `--sample-name` NAME | 否 | — | 输出前缀（所有产物文件名的开头），默认取 BAM 文件名首个 . 之前的部分；--sample-name 是等价旧名 |
 | `--query-chr` NAME | 否 | — | 本次要出结果的外源插入序列名（必填，除非 --self-test） |
 | `--insert-chrs` NAME1,NAME2,... | 否 | — | 参考序列里全部外源/同源序列名，逗号分隔；默认只含 --query-chr |
 | `--insert-origin-policy` | 否 | `owned` | 共有 read 的区分策略：owned（默认）/owned-strict/lenient/consensus/legacy（可选：`owned`, `owned-strict`, `lenient`, `consensus`, `legacy`） |
@@ -27,7 +27,6 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
 | `--max-softclip-blocks` INT | 否 | `1` | soft clip 段数 > 该值则丢弃，默认 1 |
 | `--min-clip-length` INT | 否 | `0` | 作为断点证据时要求的最小 soft clip 长度，默认 0（不限制） |
 | `--keep-secondary` | 否 | 关 | 保留 secondary 比对（默认丢弃） |
-| `--mismatch-source` | 否 | `nm` | 错配数来源：nm=NM 标签（默认）；md=由 MD 推导（历史行为）。两者都不自动回退：选 nm 却没有 NM 时按 --on-missing-tag 丢弃或报错（可选：`nm`, `md`） |
 | `--on-missing-tag` | 否 | `skip` | 缺少 NM/MD 标签时：skip=丢弃该比对（默认）；error=报错（可选：`skip`, `error`） |
 | `--no-split-match` | 否 | 关 | 关闭「目标序列上要求存在等长 split 比对」的校验（默认开启） |
 | `--no-candidate-gate` | 否 | 关 | 关闭候选 read 闸门（等价 2.4.0 全量逐条处理）；legacy 策略下自动关闭 |
@@ -72,8 +71,8 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
 
 ```text
 错配来源与 markdup:
-  --mismatch-source nm（默认）读 NM；md 用 MD 推导（历史口径）。都不自动回退，
-  标签缺失时按 --on-missing-tag 丢弃或报错；--legacy-profile 隐含 md。
+  错配数只认 NM 标签（含 indel）；缺 NM 时按 --on-missing-tag 丢弃或报错。
+  （0.5.0 移除了 --mismatch-source md：它只数替换、不数 indel，口径与 NM 不同）
   markdup 的 FLAG 0x400 与错配统计无关，只决定 dup 两列；用 --check-markdup 核对
   标记是否可信（按两端 5' 坐标分组，再用 MD 判断被标 dup 的 read 是否真同序列）。
 ```

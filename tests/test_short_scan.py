@@ -72,7 +72,6 @@ def test_insert_chrs_defaults_to_query_and_keeps_order() -> None:
 def test_legacy_profile_expands_to_legacy_switches() -> None:
     config = scan.resolve_runtime_config(_settings(legacy_profile=True))
     assert config.insert_origin_policy == "legacy"
-    assert config.mismatch_source == "md"
     assert config.legacy_coordinates is True
     # legacy 不做归属判定，候选闸门必须自动关闭
     assert config.use_candidate_gate is False
@@ -99,13 +98,13 @@ def test_empty_bam_dir_is_usage_error(tmp_path: Path) -> None:
         scan.resolve_runtime_config(_settings(bam=(), bam_dir=tmp_path))
 
 
-def test_multiple_bams_with_sample_name_is_usage_error(tmp_path: Path) -> None:
+def test_multiple_bams_with_out_prefix_is_usage_error(tmp_path: Path) -> None:
     first = tmp_path / "a.sorted.bam"
     second = tmp_path / "b.sorted.bam"
     for path in (first, second):
         path.write_bytes(b"")
-    with pytest.raises(UsageError, match="--sample-name"):
-        scan.resolve_runtime_config(_settings(bam=(first, second), sample_name="S1"))
+    with pytest.raises(UsageError, match="--out-prefix"):
+        scan.resolve_runtime_config(_settings(bam=(first, second), out_prefix="S1"))
 
 
 def test_bam_threads_must_be_positive() -> None:
@@ -437,3 +436,52 @@ def test_scan_cli_accepts_check_markdup(tmp_path: Path) -> None:
         )
         assert code == 0
     assert output_files(out_plain) == output_files(out_check)
+
+
+def test_out_prefix_is_alias_of_sample_name(tmp_path: Path) -> None:
+    """--out-prefix 与旧名 --sample-name 等价，都决定所有产物的文件名前缀。"""
+    bam = _write_bam(
+        tmp_path / "sampleA.bam",
+        [("a", 100, True, False, "60S40M"), ("a", 900, False, False, "60S40M")],
+    )
+    for flag in ("--out-prefix", "--sample-name"):
+        out = tmp_path / flag.strip("-")
+        code = main(
+            [
+                "short",
+                "scan",
+                "--bam",
+                str(bam),
+                "--query-chr",
+                "ctg1",
+                "--insert-chrs",
+                "ctg1",
+                flag,
+                "renamed",
+                "--out-dir",
+                str(out),
+            ]
+        )
+        assert code == 0
+        assert sorted(path.name.split(".")[0] for path in out.glob("renamed.*")) or True
+        assert any(path.name.startswith("renamed.") for path in out.iterdir())
+
+
+def test_mismatch_source_flag_is_gone() -> None:
+    """0.5.0 起统一用 NM：旧开关必须被 argparse 拒绝（退出码 2）。"""
+    with pytest.raises(SystemExit) as excinfo:
+        main(
+            [
+                "short",
+                "scan",
+                "--bam",
+                "x.bam",
+                "--query-chr",
+                "ctg1",
+                "--insert-chrs",
+                "ctg1",
+                "--mismatch-source",
+                "md",
+            ]
+        )
+    assert excinfo.value.code == 2

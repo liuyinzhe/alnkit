@@ -318,10 +318,8 @@ def collect_read_records(
                 own_block = choose_evidence_block(
                     own_blocks, alignment.cigarstring or "", config.legacy_coordinates
                 )
-                own_mismatch = count_mismatches(
-                    alignment, config.mismatch_source, config.on_missing_tag, statistics=None
-                )
-                # 缺 NM/MD 时 count_mismatches 返回 None。绝不能当 0 用——0 是"最完美"，
+                own_mismatch = count_mismatches(alignment, config.on_missing_tag, statistics=None)
+                # 缺 NM 时 count_mismatches 返回 None。绝不能当 0 用——0 是"最完美"，
                 # 会让这条比对在归属打分里胜出。用一个大数表示"没有信息"，只参与记录不争取归属。
                 own_record_for_hits = build_alignment_record(
                     alignment, own_block, own_mismatch if own_mismatch is not None else 10**9
@@ -349,9 +347,7 @@ def collect_read_records(
             statistics["drop_too_many_soft_clips"] += 1
             continue
 
-        mismatch_count = count_mismatches(
-            alignment, config.mismatch_source, config.on_missing_tag, statistics
-        )
+        mismatch_count = count_mismatches(alignment, config.on_missing_tag, statistics)
         if mismatch_count is None:
             continue
         if mismatch_count > config.maximum_mismatch_count:

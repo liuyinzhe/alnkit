@@ -83,13 +83,12 @@ class RuntimeConfig(NamedTuple):
     """
 
     bam_paths: List[Path]
-    sample_name: Optional[str]
+    out_prefix: Optional[str]
     output_directory: Path
     query_chromosome: str
     insert_chromosomes: Tuple[str, ...]
     insert_origin_policy: str
     merge_window_bp: int
-    mismatch_source: str
     on_missing_tag: str
     minimum_mapping_quality: int
     maximum_mismatch_count: int
@@ -114,7 +113,7 @@ class ScanSettings:
     bam_glob: str = "*.sorted.bam"
     no_recursive: bool = False
     out_dir: Path = Path(".")
-    sample_name: str | None = None
+    out_prefix: str | None = None
     query_chr: str | None = None
     insert_chrs: str | None = None
     insert_origin_policy: str = "owned"
@@ -124,7 +123,6 @@ class ScanSettings:
     max_softclip_blocks: int = 1
     min_clip_length: int = 0
     keep_secondary: bool = False
-    mismatch_source: str = "nm"
     on_missing_tag: str = "skip"
     no_split_match: bool = False
     no_candidate_gate: bool = False
