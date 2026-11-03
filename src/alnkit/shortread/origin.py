@@ -452,7 +452,11 @@ def select_read_evidences(
                         origin_label=origin_label,
                         origin_status="pending_ambiguous",
                         interference_sources=determine_interference_sources(
-                            origin_label, candidate_insert_chromosomes, homology_hit_chromosomes
+                            origin_label,
+                            candidate_insert_chromosomes,
+                            homology_hit_chromosomes,
+                            config.query_chromosome,
+                            config.interference_scope,
                         ),
                     )
                 )
@@ -476,7 +480,11 @@ def select_read_evidences(
                 origin_label=origin_label,
                 origin_status=reason,
                 interference_sources=determine_interference_sources(
-                    origin_label, candidate_insert_chromosomes, homology_hit_chromosomes
+                    origin_label,
+                    candidate_insert_chromosomes,
+                    homology_hit_chromosomes,
+                    config.query_chromosome,
+                    config.interference_scope,
                 ),
             )
         )

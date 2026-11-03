@@ -191,6 +191,28 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         help="保留被 markdup 标记为重复的 read 作为证据（默认剔除，只写 dup 列）",
     )
     parser.add_argument(
+        "--min-sr-support",
+        dest="min_sr_support",
+        type=int,
+        default=1,
+        metavar="INT",
+        help=(
+            "位点至少要有多少条支持 read（SR+PESR）才输出，默认 1（不过滤，保持历史行为）；"
+            "设 2–3 可去掉单 read 噪声位点"
+        ),
+    )
+    parser.add_argument(
+        "--interference-scope",
+        dest="interference_scope",
+        choices=("all", "other"),
+        default="all",
+        help=(
+            "同源干扰的判据范围：all=支持 read 命中任何插入序列都算干扰（默认，历史口径，"
+            "多外源面板下偏灵敏）；other=只算 query 之外的插入（多外源面板更精确）。"
+            "注意：两者都只比较“插入之间”，无法识别“外源与基因组同源”造成的干扰"
+        ),
+    )
+    parser.add_argument(
         "--check-markdup",
         action="store_true",
         help=(
@@ -252,6 +274,8 @@ def run_scan(args: argparse.Namespace) -> int:
         no_duplicate_filter=args.no_duplicate_filter,
         require_dup_flags=args.require_dup_flags,
         check_markdup=args.check_markdup,
+        minimum_site_support=args.min_sr_support,
+        interference_scope=args.interference_scope,
         bam_threads=args.bam_threads,
         legacy_coordinates=args.legacy_coordinates,
         legacy_profile=args.legacy_profile,

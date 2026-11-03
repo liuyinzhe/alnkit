@@ -124,3 +124,45 @@ def merge_nearby_breakpoints(
                 merged_duplicates[site] = duplicate_read_names
 
     return merged_evidence, merged_duplicates, merged_positions_by_site
+
+
+def filter_by_minimum_support(
+    evidence_by_breakpoint: Dict[Tuple[str, int], BreakpointEvidence],
+    duplicates_by_breakpoint: Dict[Tuple[str, int], Set[str]],
+    merged_positions_by_site: Dict[Tuple[str, int], Tuple[int, ...]],
+    minimum_support: int,
+) -> Tuple[
+    Dict[Tuple[str, int], BreakpointEvidence],
+    Dict[Tuple[str, int], Set[str]],
+    Dict[Tuple[str, int], Tuple[int, ...]],
+    int,
+]:
+    """按位点支持数（SR + PESR）过滤，丢弃支持不足的位点。
+
+    输入示例:
+        evidence = {('chr1', 100): 2 条 SR 的桶, ('chr1', 900): 1 条 SR 的桶}
+        minimum_support = 2
+    输出示例: ({('chr1', 100): 桶}, {}, {('chr1', 100): (100,)}, 1)   # 末位是被丢弃的位点数
+
+    说明: minimum_support <= 1 时原样返回（默认值，保持历史输出逐字节不变）。
+          三份结构同步过滤，保证四张表口径一致。
+    """
+    if minimum_support <= 1:
+        return (
+            evidence_by_breakpoint,
+            duplicates_by_breakpoint,
+            merged_positions_by_site,
+            0,
+        )
+    kept = {
+        key
+        for key, bucket in evidence_by_breakpoint.items()
+        if len(bucket.split_read_names) + len(bucket.pair_split_read_names) >= minimum_support
+    }
+    dropped = len(evidence_by_breakpoint) - len(kept)
+    return (
+        {key: bucket for key, bucket in evidence_by_breakpoint.items() if key in kept},
+        {key: names for key, names in duplicates_by_breakpoint.items() if key in kept},
+        {key: positions for key, positions in merged_positions_by_site.items() if key in kept},
+        dropped,
+    )

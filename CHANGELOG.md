@@ -3,6 +3,20 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 SemVer。
 条目按功能 ID（`A*` 三代 / `B*` 二代 / `C*` 绘图 / `D*` 公共层）分组，ID 定义见规划文档。
 
+## [Unreleased]
+
+### Added
+
+- `short scan` 新增 **`--min-sr-support`**（默认 `1` = 不过滤，历史产物逐字节不变）：
+  按位点支持数（SR+PESR）过滤，用来清掉单 read 噪声位点。实测（20260103 数据）
+  `--min-sr-support 2` 让位点 7 → 3，噪声全清而真位点（SR=140/PESR=7）保留；
+  统计里新增 `sites_dropped_by_min_support`。
+- `short scan` 新增 **`--interference-scope {all,other}`**（默认 `all` = 历史口径）：
+  `other` 只把 query 之外的插入命中算作同源干扰，适合多外源面板（旧例 29 → 27 个干扰位点）；
+  对"外源与基因组同源"的场景无区分力（判据只比较插入之间）。
+- 新增 `merge.filter_by_minimum_support()`（位点级过滤的纯函数，带单测），
+  `--check-markdup`（见 0.4.x 说明）继续保留。
+
 ## [0.4.0] - 2026-11-02
 
 ### Added

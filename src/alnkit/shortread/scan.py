@@ -33,7 +33,11 @@ from .evidence import (
 
 from .interference import collect_homology_hit_chromosomes, determine_interference_sources
 
-from .merge import cluster_positions_within_window, merge_nearby_breakpoints
+from .merge import (
+    cluster_positions_within_window,
+    filter_by_minimum_support,
+    merge_nearby_breakpoints,
+)
 
 from .model import (
     AlignmentBlock,
@@ -119,6 +123,8 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
 
     if settings.bam_threads < 1:
         raise UsageError("--bam-threads 必须 >= 1")
+    if settings.minimum_site_support < 1:
+        raise UsageError("--min-sr-support 必须 >= 1（1 = 不过滤，保持历史行为）")
 
     return RuntimeConfig(
         bam_paths=bam_paths,
@@ -142,6 +148,8 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
         exclude_duplicates=not settings.no_duplicate_filter,
         require_duplicate_flags=settings.require_dup_flags,
         check_markdup=settings.check_markdup,
+        minimum_site_support=settings.minimum_site_support,
+        interference_scope=settings.interference_scope,
         bam_threads=settings.bam_threads,
     )
 
@@ -270,6 +278,21 @@ def process_single_bam(bam_path: Path, config: RuntimeConfig) -> Dict[str, int]:
     statistics["breakpoints_merged_away"] = statistics["breakpoints_before_merge"] - len(
         evidence_by_breakpoint
     )
+    # 位点级最小支持数过滤（默认 1 = 不过滤）
+    (
+        evidence_by_breakpoint,
+        duplicates_by_breakpoint,
+        merged_positions_by_site,
+        dropped_sites,
+    ) = filter_by_minimum_support(
+        evidence_by_breakpoint,
+        duplicates_by_breakpoint,
+        merged_positions_by_site,
+        config.minimum_site_support,
+    )
+    if dropped_sites:
+        statistics["sites_dropped_by_min_support"] = dropped_sites
+
     insert_position_path = config.output_directory / f"{sample_name}.Insert_Position.result.xls"
     written_breakpoints = write_insert_position_table(
         insert_position_path, evidence_by_breakpoint, duplicates_by_breakpoint
@@ -736,6 +759,8 @@ def run_self_test() -> None:
         exclude_duplicates=True,
         require_duplicate_flags=False,
         check_markdup=False,
+        minimum_site_support=1,
+        interference_scope="all",
         bam_threads=1,
     )
     ambiguous_read = ReadEvidence(

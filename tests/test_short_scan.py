@@ -437,3 +437,62 @@ def test_scan_cli_accepts_check_markdup(tmp_path: Path) -> None:
         )
         assert code == 0
     assert output_files(out_plain) == output_files(out_check)
+
+
+### 位点级最小支持数 / 干扰口径 ###
+
+
+def test_determine_interference_sources_scope_other_excludes_query() -> None:
+    """scope=other 时 query 自身的命中不算干扰；ambiguous 时也只留其它插入。"""
+    from alnkit.shortread.interference import determine_interference_sources
+
+    assert determine_interference_sources("owned_query", {"q"}, {"q"}, "q", "all") == {"q"}
+    assert determine_interference_sources("owned_query", {"q"}, {"q"}, "q", "other") == set()
+    assert determine_interference_sources("owned_query", {"q"}, {"q", "h"}, "q", "other") == {"h"}
+    assert determine_interference_sources("ambiguous", {"q", "h"}, set(), "q", "other") == {"h"}
+    # ambiguous 且只命中 query 本身 → 没有其它插入，不构成干扰
+    assert determine_interference_sources("ambiguous", {"q"}, set(), "q", "other") == set()
+
+
+def test_filter_by_minimum_support() -> None:
+    """位点级过滤：按 SR+PESR 总支持数丢位点，结构三份同步；默认 1 原样返回。"""
+    from alnkit.shortread.merge import filter_by_minimum_support
+    from alnkit.shortread.model import BreakpointEvidence
+
+    def bucket(sr: int, pesr: int) -> BreakpointEvidence:
+        return BreakpointEvidence(
+            split_read_names={f"s{i}" for i in range(sr)},
+            pair_split_read_names={f"p{i}" for i in range(pesr)},
+            owned_query_read_names=set(),
+            owned_other_read_names=set(),
+            ambiguous_read_names=set(),
+            no_insert_hit_read_names=set(),
+            consensus_read_names=set(),
+            interference_source_read_names={},
+        )
+
+    evidence = {("chr1", 100): bucket(2, 0), ("chr1", 900): bucket(1, 0)}
+    duplicates = {("chr1", 100): {"d1"}, ("chr1", 900): {"d2"}}
+    merged = {("chr1", 100): (100,), ("chr1", 900): (900,)}
+
+    same = filter_by_minimum_support(evidence, duplicates, merged, 1)
+    assert same[0] is evidence and same[3] == 0  # 默认不过滤，原对象返回
+
+    kept_evidence, kept_duplicates, kept_merged, dropped = filter_by_minimum_support(
+        evidence, duplicates, merged, 2
+    )
+    assert set(kept_evidence) == {("chr1", 100)}
+    assert set(kept_duplicates) == {("chr1", 100)}
+    assert set(kept_merged) == {("chr1", 100)}
+    assert dropped == 1
+
+
+def test_min_sr_support_must_be_positive() -> None:
+    from alnkit.shortread.model import ScanSettings
+
+    with pytest.raises(UsageError, match="--min-sr-support"):
+        scan.resolve_runtime_config(
+            ScanSettings(
+                bam=(Path("x.bam"),), query_chr="ctg1", insert_chrs="ctg1", minimum_site_support=0
+            )
+        )

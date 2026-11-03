@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence, Set
+from typing import Optional, Sequence, Set
 
 from .model import InsertHit
 
@@ -22,7 +22,11 @@ def collect_homology_hit_chromosomes(insert_hits: Sequence[InsertHit]) -> Set[st
 
 
 def determine_interference_sources(
-    origin_label: str, candidate_insert_chromosomes: Set[str], homology_hit_chromosomes: Set[str]
+    origin_label: str,
+    candidate_insert_chromosomes: Set[str],
+    homology_hit_chromosomes: Set[str],
+    query_chromosome: Optional[str] = None,
+    scope: str = "all",
 ) -> Set[str]:
     """汇总一条 read 的“同源干扰源头”。
 
@@ -37,8 +41,15 @@ def determine_interference_sources(
 
     说明: 这是“是否同源干扰/干扰来自哪里”的唯一判据；表格里的干扰源头计数由它汇总而来。
     """
-    if homology_hit_chromosomes:
-        return set(homology_hit_chromosomes)
+    homology = set(homology_hit_chromosomes)
+    candidates = set(candidate_insert_chromosomes)
+    if scope == "other" and query_chromosome:
+        # 只看“其它插入序列”：query 自身的命中是正常形态（断点 read 的另一段本来就落在外源上），
+        # 把它算成干扰会让真实位点也被标成 is_homology_interference=True
+        homology.discard(query_chromosome)
+        candidates.discard(query_chromosome)
+    if homology:
+        return homology
     if origin_label == "ambiguous":
-        return set(candidate_insert_chromosomes)
+        return candidates
     return set()

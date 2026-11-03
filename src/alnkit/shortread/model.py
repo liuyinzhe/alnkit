@@ -54,6 +54,7 @@ STAT_KEYS = (
     "interference_table_rows_written",
     "breakpoints_before_merge",
     "breakpoints_merged_away",
+    "sites_dropped_by_min_support",
     "breakpoints_written",
     "duplicate_alignments",
     "duplicate_reads",
@@ -102,6 +103,8 @@ class RuntimeConfig(NamedTuple):
     exclude_duplicates: bool
     require_duplicate_flags: bool
     check_markdup: bool
+    minimum_site_support: int
+    interference_scope: str
     bam_threads: int
 
 
@@ -131,6 +134,8 @@ class ScanSettings:
     no_duplicate_filter: bool = False
     require_dup_flags: bool = False
     check_markdup: bool = False
+    minimum_site_support: int = 1
+    interference_scope: str = "all"
     bam_threads: int = 1
     legacy_coordinates: bool = False
     legacy_profile: bool = False

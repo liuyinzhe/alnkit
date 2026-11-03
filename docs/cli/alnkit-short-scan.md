@@ -5,7 +5,7 @@
 ## 用法
 
 ```bash
-alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [--out-dir …] [--sample-name …] [--query-chr …] [--insert-chrs …] [--insert-origin-policy …] [--merge-window-bp …] [--min-mapq …] [--max-mismatch …] [--max-softclip-blocks …] [--min-clip-length …] [--mismatch-source …] [--on-missing-tag …] [--bam-threads …] [--no-recursive] [--keep-secondary] [--no-split-match] [--no-candidate-gate] [--no-duplicate-filter] [--check-markdup] [--require-dup-flags] [--legacy-coordinates] [--legacy-profile] [--self-test]
+alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [--out-dir …] [--sample-name …] [--query-chr …] [--insert-chrs …] [--insert-origin-policy …] [--merge-window-bp …] [--min-mapq …] [--max-mismatch …] [--max-softclip-blocks …] [--min-clip-length …] [--mismatch-source …] [--on-missing-tag …] [--min-sr-support …] [--interference-scope …] [--bam-threads …] [--no-recursive] [--keep-secondary] [--no-split-match] [--no-candidate-gate] [--no-duplicate-filter] [--check-markdup] [--require-dup-flags] [--legacy-coordinates] [--legacy-profile] [--self-test]
 ```
 
 ## 参数
@@ -32,6 +32,8 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
 | `--no-split-match` | 否 | 关 | 关闭「目标序列上要求存在等长 split 比对」的校验（默认开启） |
 | `--no-candidate-gate` | 否 | 关 | 关闭候选 read 闸门（等价 2.4.0 全量逐条处理）；legacy 策略下自动关闭 |
 | `--no-duplicate-filter` | 否 | 关 | 保留被 markdup 标记为重复的 read 作为证据（默认剔除，只写 dup 列） |
+| `--min-sr-support` INT | 否 | `1` | 位点至少要有多少条支持 read（SR+PESR）才输出，默认 1（不过滤，保持历史行为）；设 2–3 可去掉单 read 噪声位点 |
+| `--interference-scope` | 否 | `all` | 同源干扰的判据范围：all=支持 read 命中任何插入序列都算干扰（默认，历史口径，多外源面板下偏灵敏）；other=只算 query 之外的插入（多外源面板更精确）。注意：两者都只比较“插入之间”，无法识别“外源与基因组同源”造成的干扰（可选：`all`, `other`） |
 | `--check-markdup` | 否 | 关 | 核对 markdup 标记是否可信：把 read 按「比对坐标 + 错配数」分组，报告全未标记组（markdup 没做/不完整）、标记不一致组、以及单条被标 dup 的 read |
 | `--require-dup-flags` | 否 | 关 | BAM 里没有任何 FLAG 0x400（未做 markdup）时报错退出（退出码 2） |
 | `--bam-threads` INT | 否 | `1` | BAM 解压线程数，默认 1；大文件可调到 2-4 |
