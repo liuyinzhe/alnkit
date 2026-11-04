@@ -56,7 +56,6 @@ include = [
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
-    "AGENTS.md",
 ]
 
 [tool.ruff]

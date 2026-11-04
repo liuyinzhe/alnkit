@@ -14,3 +14,5 @@ site/
 .DS_Store
 *.local.md
 .plans/
+# 内部接手文档，故意不入库
+AGENTS.md

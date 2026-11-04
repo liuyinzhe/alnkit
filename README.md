@@ -108,10 +108,6 @@ alnkit selftest        # 内置断言（坐标/表契约 + 二代断点口径，
 - **表是接口**：所有分析先落成 TSV，图从 TSV 出；列的增删受契约测试约束。
 - **退出码**：`0` 成功 / `1` 运行期错误 / `2` 参数或前置校验失败。
 
-**要改这个仓库的代码？** 先读 [`AGENTS.md`](AGENTS.md)：目录结构、五条硬性不变式、
-开发与自检命令、私有黄金数据的准备方式、发布流程（tag → 人工 Approve → Trusted Publishing），
-以及那些"看起来像 bug 其实不是"的已知限制。
-
 ## 为什么自带组装器（而不是让你用 hifiasm / miniasm）
 
 `long assemble` 不是通用组装器，它只做一件事：**从 junction read 出发，用 read-vs-read overlap
