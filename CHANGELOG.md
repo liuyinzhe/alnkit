@@ -20,9 +20,17 @@
   `samtools coverage` 一致（`M`/`=`/`X` 计深，`D`/`N` 不算覆盖，平均深度的分母是区间长度）。
 - 新表（5 张，均已进 `docs/concepts/tables.md`）：`insertion_clip_reads`、
   `insertion_clip_consensus`、`coverage_region`、`coverage_bins`、`coverage_bases`。
-- 合成 fixture 与黄金对账：`tests/fixtures/insertion/`、`tests/fixtures/coverage/`
-  由各自的 `make_fixture.py` 生成（坐标全在 2 kb 内，无真实数据）；黄金 TSV 由**并入前的
-  独立脚本**对同一份 BAM 产出，回归时逐列比对（共 76 个新用例）。
+- 合成 fixture 与黄金对账：`tests/fixtures/insertion/`（chr1 200 kb）与
+  `tests/fixtures/coverage/`（chr1 2.2 kb）由各自的 `make_fixture.py` 生成，坐标全部是编造的
+  小坐标（< 1 Mb），无真实数据；黄金 TSV 由**并入前的独立脚本**对同一份 BAM 产出，
+  回归时逐列比对（共 84 个新用例）。
+
+### Changed
+
+- `short coverage` 的 `--region` 现在必填（只有 `--list` 不需要）：旧工具在 BAM 只有一条
+  参考序列时会自动统计整条，显式写 `--region <contig>` 即可，行为更可预测。
+- `short insertion-plot` 的 `--breakpoint` / `--region` 一律 **1-based**；表里的
+  `breakpoint_1based` 与旧脚本 `sites.tsv` 的同名列差 1（口径见上）。
 
 ## [0.5.0] - 2026-11-03
 

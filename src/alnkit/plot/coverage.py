@@ -237,10 +237,14 @@ def resolve_label_color(background_color: str) -> str:
 
 
 def bin_arrays(bin_rows: Sequence[dict[str, Any]]) -> tuple[list[int], list[float], list[float]]:
-    """从 ``coverage_bins`` 的行算出画图需要的两个序列与横轴边界。
+    """从 ``coverage_bins`` 的行算出画图需要的边界序列与两个面板的数值。
 
-    输入示例: 两个 bin：宽 25/覆盖 25/深度和 50，宽 25/覆盖 0/深度和 0，起点 1
-    输出示例: ([1, 26], [100.0, 0.0], [2.0, 0.0])   # (边界, 广度%, 平均深度)
+    输入示例: 两个 bin，起点 1、宽 25，覆盖 25 / 0，深度和 50 / 0
+    输出示例: ([1, 26, 51], [100.0, 0.0], [2.0, 0.0])   # (边界, 广度%, 平均深度)
+
+    说明: 表里是 **1-based 闭区间**（``bin_start_1based``..``bin_end_1based``），
+    而画的是一条连续的“位置轴”：碱基 i 占据 [i, i+1)，所以闭区间的右端要 +1
+    才能当下一个 bin 的左边界（否则每个 bin 都窄 1 bp，1 bp 的 bin 直接变成零宽）。
     """
     if not bin_rows:
         raise RunError("coverage_bins 表里没有任何 bin")
@@ -253,12 +257,13 @@ def bin_arrays(bin_rows: Sequence[dict[str, Any]]) -> tuple[list[int], list[floa
         bin_width = int(row["bin_width_bp"])
         if index == 0:
             boundaries.append(bin_start)
-        elif bin_start != boundaries[-1] + 1:  # 分箱必须首尾相接，否则图画歪了也不报错
+        elif bin_start != int(bin_rows[index - 1]["bin_end_1based"]) + 1:
+            # 分箱必须首尾相接，否则图画歪了也不会报错
             raise RunError(
                 f"coverage_bins 的第 {index + 1} 个 bin 与上一个不相接："
-                f"{bin_start} 接不上 {boundaries[-1]}"
+                f"{bin_start} 接不上 {bin_rows[index - 1]['bin_end_1based']}"
             )
-        boundaries.append(bin_end)
+        boundaries.append(bin_end + 1)
         breadth_percent.append(100.0 * int(row["covered_bases"]) / bin_width if bin_width else 0.0)
         mean_depth.append(int(row["depth_sum"]) / bin_width if bin_width else 0.0)
     return boundaries, breadth_percent, mean_depth
@@ -371,7 +376,7 @@ def render(
         )
         depth_axis.annotate(
             f"mean {region_mean_depth:,.1f}×",
-            xy=(region_end, region_mean_depth),
+            xy=(region_end + 1, region_mean_depth),  # 与 bin 边界同一坐标轴口径
             xytext=(-4, 3),
             textcoords="offset points",
             ha="right",
@@ -440,7 +445,7 @@ def render(
         axis.tick_params(axis="y", length=0)
         for spine_name in ("top", "right"):
             axis.spines[spine_name].set_visible(False)
-    depth_axis.set_xlim(region_start, region_end)
+    depth_axis.set_xlim(region_start, region_end + 1)  # 闭区间右端 +1：碱基 i 占 [i, i+1)
     for axis in (breadth_axis, depth_axis):
         axis.tick_params(axis="x", length=0, labelbottom=False)
 
@@ -491,8 +496,12 @@ def render(
             color=MUTED_COLOR,
         )
 
-    figure.savefig(output_path, dpi=dpi, facecolor="white")
-    plt.close(figure)
+    try:
+        figure.savefig(output_path, dpi=dpi, facecolor="white")
+    except OSError as error:  # 写不了的路径要报成 RunError，而不是 traceback
+        raise RunError(f"写不了 {output_path}：{error}") from error
+    finally:
+        plt.close(figure)
     return str(output_path)
 
 
@@ -531,7 +540,7 @@ def default_name(bam_path: str | Path, region: coverage_stats.Region, reference_
 
     输入示例: default_name("sampleA.markdup.bam", Region("chr1", 0, 1416), 1416)
     输出示例: "sampleA.chr1"
-    输入示例: default_name("sampleA.markdup.bam", Region("chr1", 99, 200), 170805979)
+    输入示例: default_name("sampleA.markdup.bam", Region("chr1", 99, 200), 2_000_000)
     输出示例: "sampleA.chr1_100-200"
     """
     bam_stem = Path(bam_path).name.split(".")[0] or "coverage"
@@ -632,7 +641,10 @@ def run(settings: CoverageSettings) -> dict[str, Any]:
     genes = _load_genes(settings.bed, region)
 
     output_directory = Path(settings.out_dir)
-    output_directory.mkdir(parents=True, exist_ok=True)
+    try:
+        output_directory.mkdir(parents=True, exist_ok=True)
+    except OSError as error:  # cli.main 只捕 AlnkitError，不能把 OSError 漏出去
+        raise RunError(f"无法创建输出目录 {output_directory}：{error}") from error
     name = settings.name or default_name(settings.bam, region, reference_length)
     sample = Path(settings.bam).name.split(".")[0] or "sample"
     region_path = output_directory / f"{name}.region.tsv"
@@ -698,7 +710,7 @@ def _reference_rows(alignment_file) -> list[tuple[str, int, int]]:
     """``--list`` 的行：参考序列名、长度、比对上来的 reads 数（按 reads 数降序）。
 
     输入示例: 一个有两万条 reads 落在 chr1 的 BAM
-    输出示例: [("chr1", 170805979, 3769), ("insertA", 1416, 2691)]
+    输出示例: [("chr1", 2_000_000, 3769), ("insertA", 1416, 2691)]
     """
     try:
         statistics = sorted(alignment_file.get_index_statistics(), key=lambda row: -row.mapped)

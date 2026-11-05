@@ -80,8 +80,8 @@ def side_colors(clip_side: str) -> tuple[str, str]:
 def format_position_axis(axes_object) -> None:
     """把 x 轴刻度改成"千分位整数"，避免 matplotlib 的 +7.35e7 偏移记号。
 
-    输入示例: 轴范围 73520700–73521600
-    输出示例: 刻度显示 "73,520,700"、"73,520,800" …
+    输入示例: 轴范围 1000000–1000900
+    输出示例: 刻度显示 "1,000,000"、"1,000,100" …
     """
     axes_object.xaxis.set_major_formatter(FuncFormatter(lambda value, _pos: f"{int(value):,}"))
 
@@ -103,9 +103,15 @@ def save_figure(figure, output_path: str | Path, dpi: int) -> None:
 
     输入示例: figure=<Figure>, output_path=out/demo.png, dpi=150
     输出示例: 生成 out/demo.png（像素宽 = 图宽英寸 × 150）
+
+    写不了时转成 ``RunError``（退出码 1），并保证画布无论如何都被关掉。
     """
-    figure.savefig(output_path, dpi=dpi, bbox_inches="tight", pad_inches=0.25)
-    plt.close(figure)
+    try:
+        figure.savefig(output_path, dpi=dpi, bbox_inches="tight", pad_inches=0.25)
+    except OSError as error:
+        raise RunError(f"写不了 {output_path}：{error}") from error
+    finally:
+        plt.close(figure)
 
 
 def build_figure(*, figure_width: float = 13.0, figure_height: float = 8.8):
@@ -395,7 +401,7 @@ def draw_single_breakpoint_figure(
 
     输入示例::
         clip_groups=[ClipGroup(100000,"left",20 条), ClipGroup(100000,"right",20 条)],
-        chrom="chr6", span_start=99200, span_end=100800, breakpoint=100000
+        chrom="chr1", span_start=99200, span_end=100800, breakpoint=100000
     输出示例::
         单侧 → [未知区][60bp 块] 贴着断点，reads 轨道只有该侧
         双侧 → [60bp][未知区（合并）][55bp] + 两条连线收到断点
@@ -405,6 +411,8 @@ def draw_single_breakpoint_figure(
     right_group = next((group for group in clip_groups if group.side == "right"), None)
     both_sides = left_group is not None and right_group is not None
     groups = [group for group in (left_group, right_group) if group is not None]
+    if not groups:  # 先拦下来：不然会先建一张画布、再抛错
+        raise UsageError(f"断点 {coords.left_base_1based(breakpoint):,} 在本区间没有任何 clip read")
 
     figure, insert_axis, reads_axis = build_figure()
 
@@ -436,10 +444,6 @@ def draw_single_breakpoint_figure(
         )
         block_edges = [left_block_start, right_block_end]
     else:
-        if not groups:
-            raise UsageError(
-                f"断点 {coords.left_base_1based(breakpoint):,} 在本区间没有任何 clip read"
-            )
         group = groups[0]
         unknown_width = (
             max(group.maximum_clip_length, UNKNOWN_WIDTH_MIN_CLIP) * UNKNOWN_WIDTH_FACTOR
@@ -624,7 +628,7 @@ class InsertionSettings:
 
     示例::
 
-        InsertionSettings(bam="reads.bam", chrom="chr6", window_start=99200,
+        InsertionSettings(bam="reads.bam", chrom="chr1", window_start=99200,
                           window_end=100800, breakpoints=(100000,), out_dir="out")
     """
 
@@ -643,7 +647,7 @@ class InsertionSettings:
 def run(settings: InsertionSettings) -> dict[str, object]:
     """读 BAM → 写 ``insertion_clip_reads`` → 读回该表 → 写一致性表 → 由表出图。
 
-    输入示例: InsertionSettings(bam="reads.bam", chrom="chr6", window_start=99200,
+    输入示例: InsertionSettings(bam="reads.bam", chrom="chr1", window_start=99200,
                                 window_end=100800, breakpoints=(100000,))
     输出示例: {"png": "out/insertion_plot.png", "clips_tsv": "…", "consensus_tsv": "…",
                "junctions": [100000], "n_reads": 40, "xlim": (99734, 100660)}
@@ -655,6 +659,8 @@ def run(settings: InsertionSettings) -> dict[str, object]:
         raise UsageError("--region 的起点必须 >= 1 且小于终点（1-based 闭区间）")
     if settings.dpi <= 0:
         raise UsageError("--dpi 必须为正数")
+    if "/" in settings.name or "\\" in settings.name:
+        raise UsageError("--name 只能是文件名前缀，不能带目录（用 --out-dir）")
 
     clip_reads = insertion.load_clip_reads(
         settings.bam, settings.chrom, settings.window_start, settings.window_end
@@ -671,7 +677,10 @@ def run(settings: InsertionSettings) -> dict[str, object]:
     clips_path = output_directory / f"{settings.name}.clips.tsv"
     consensus_path = output_directory / f"{settings.name}.consensus.tsv"
     png_path = output_directory / f"{settings.name}.png"
-    output_directory.mkdir(parents=True, exist_ok=True)
+    try:
+        output_directory.mkdir(parents=True, exist_ok=True)
+    except OSError as error:  # cli.main 只捕 AlnkitError，不能把 OSError 漏出去
+        raise RunError(f"无法创建输出目录 {output_directory}：{error}") from error
 
     comments = (
         f"sample={sample}",

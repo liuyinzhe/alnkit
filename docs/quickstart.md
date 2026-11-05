@@ -72,7 +72,24 @@ alnkit short scan --bam sample.markdup.bam \
    （中间的参考片段仍被 reads 覆盖，不是缺失），不要合并调用；
 4. 低支持（1–2 条）又落在外源同源区附近的位点，先在 IGV 上看 clip 方向与断点是否齐平再定。
 
-## 5. 三代断点→类→组装→落点
+## 5. 二代出图（位点示意图 / 覆盖度）
+
+```bash
+# 位点示意图：1 个断点（单侧/同断点双侧）或 2-3 个断点（多断点），画法自动判断
+alnkit short insertion-plot --bam reads.sorted.bam --region chr1:99101-100900 \
+    --breakpoint 100000 --out-dir out --name both
+
+# 覆盖度：上广度、下深度，可选 BED 基因轨道
+alnkit short coverage --bam reads.sorted.bam --region chr1:1-20000 --bins 400 \
+    --bed genes.bed --out-dir out
+```
+
+两个命令都遵循“表是接口”：先写 TSV（`insertion_clip_reads` / `insertion_clip_consensus`、
+`coverage_region` / `coverage_bins`），再由表渲染 PNG。参数说明见
+[`alnkit short insertion-plot`](cli/alnkit-short-insertion-plot.md) 与
+[`alnkit short coverage`](cli/alnkit-short-coverage.md)。
+
+## 6. 三代断点→类→组装→落点
 
 ```bash
 alnkit long classify  --bam reads.bam --reads reads.fastq --merged-fai merged.fa.fai \

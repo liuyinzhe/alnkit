@@ -7,7 +7,7 @@ BAM/PAF 的插入证据工具箱：断点提取 + 独立绘图。
 | 支柱 | 回答的问题 | 入口 |
 |---|---|---|
 | 长读长（三代） | 外源插在基因组的哪里、结构如何、能不能拼出来 | `alnkit long *` |
-| 短读长（二代） | 断点在哪、有多少 SR/PESR/DUP 证据、有没有同源干扰 | `alnkit short scan` |
+| 短读长（二代） | 断点在哪、有多少 SR/PESR/DUP 证据、有没有同源干扰；那个位点长什么样、覆盖够不够 | `alnkit short scan` / `short insertion-plot` / `short coverage` |
 | 绘图 | 一条 read 上都有什么片段；一段序列出现在哪些组装的哪里 | `alnkit plot *` |
 
 
@@ -16,6 +16,7 @@ BAM/PAF 的插入证据工具箱：断点提取 + 独立绘图。
 ```text
 三代：参考 + 外源 → 合并参考 → 比对 → 目标 read 分类 → overlap 图 → 断点/类 → 组装 → 落点(丝带图)
 二代：BAM → SR/PESR/DUP 断点证据 → 归属/同源干扰 → 位点窗口合并 → 三张表
+二代出图：BAM → 表（clip 证据 / 分箱统计）→ 示意图 / 覆盖度图
 绘图：任意 FASTA/PAF → 丝带图 ；任意 BAM/PAF/段表 → 单 read 轨道图
 ```
 

@@ -131,6 +131,10 @@ alnkit selftest        # 内置断言（坐标/表契约 + 二代断点口径，
 `D`/`N` 占参考位置但没有碱基不算覆盖，`S`/`I`/`H` 不占参考位置；
 `depth >= --min-depth` 的位置才算“被覆盖”，平均深度的分母是区间长度。
 
+示意图的 x 轴是 **0-based 参考坐标**（与原脚本一致，便于和 read 的比对坐标对读）；
+断点标注写的是断点边界，数值等于“边界左侧碱基的 1-based 坐标”，所以它正好落在同一个刻度上。
+覆盖度图的 x 轴则是 **1-based**（与 `samtools coverage` 一致）。
+
 ```bash
 alnkit short insertion-plot --bam reads.sorted.bam --region chr1:99101-100900 \
     --breakpoint 100000 --out-dir out --name both     # -> both.png + 两张表
@@ -187,8 +191,10 @@ hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_as
 - `long locate` 的 PDF 含生成时间，不能与其他运行逐字节比较（测试只比大小）；
   你自己生成的 BAM 与本项目历史产物的字节也不会相同（`@PG` 记录命令行），
   但比对记录本身可用于对账。
-- `short insertion-plot` 的未知区宽度是**示意值**（`max(该侧最大 clip 长度, 100) × 2.6`），
-  不代表真实未知 bp；断点间距小于 clip 长度时，多断点图的彩色块仍可能重叠（只有未知区保证留白）。
+- `short insertion-plot` 的未知区宽度是**示意值**：单侧图与多断点图用
+  `max(clip 长度, 100) × 2.6`（多断点图取所有组的最大 clip），同断点双侧图的中段用
+  `2 × max(左右最大 clip) × 1.3`；都不代表真实未知 bp。断点间距小于 clip 长度时，
+  多断点图的彩色块仍可能重叠（只有未知区保证留白）。
   它只取 primary 比对，不按 MAPQ / duplicate 过滤；首尾同时有 soft clip 时只取较长一侧
   （并列取 left），硬剪贴 `H` 与 `P` 先剔除。
 - `short coverage` 的逐碱基数组约 12 byte/碱基，区间超过 20 Mb 会直接报错（退出码 2）。

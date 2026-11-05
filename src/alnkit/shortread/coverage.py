@@ -449,11 +449,15 @@ def region_row(result: CoverageResult, sample: str) -> dict[str, Any]:
     输出示例: {"sample": "sampleA", "chrom": "chr1", "region_start_1based": 1,
               "n_reads_selected": 3, "percent_covered": 75.0, "mean_depth": 1.25, …}
     """
+    # 0-based 半开 [start, end) -> 1-based 闭区间：区间列一律由 coords 换算
+    region_start_1based, region_end_1based = coords.interval_0based_to_1based(
+        result.region.start, result.region.end
+    )
     return {
         "sample": sample,
         "chrom": result.region.name,
-        "region_start_1based": coords.to_1based(result.region.start),
-        "region_end_1based": result.region.end,
+        "region_start_1based": region_start_1based,
+        "region_end_1based": region_end_1based,
         "region_length_bp": result.region.length,
         "n_bins": len(result.bin_edges) - 1,
         "n_reads_total": result.read_count,

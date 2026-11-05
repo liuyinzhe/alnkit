@@ -36,7 +36,7 @@ READS: tuple[tuple[str, int, tuple[tuple[int, int], ...], int, int], ...] = (
     *((f"tile_{index:02d}", index * 60, ((0, 100),), 60, 0) for index in range(25)),
     # 30D：缺失段不携带碱基，不该计入深度（1651..1680 应保持 0）
     ("deletion_read", 1600, ((0, 50), (2, 30), (0, 50)), 60, 0),
-    # 30S70M：soft clip 不占参考位置（1710..1740 应保持 0）
+    # 30S70M：soft clip 不占参考位置（1730..1740 应保持 0）
     ("softclip_read", 1740, ((4, 30), (0, 70)), 60, 0),
     # 20I：插入不占参考位置，两段 M 之间的参考位置仍然连续
     ("insertion_read", 1820, ((0, 40), (1, 20), (0, 40)), 60, 0),

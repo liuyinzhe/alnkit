@@ -274,7 +274,9 @@ COLUMN_DOC: dict[str, dict[str, str]] = {
         "ref_start_0based": "比对块起点，0-based 半开",
         "ref_end_0based": "比对块终点，0-based 半开（不含）",
         "clip_length_bp": "soft clip 长度（bp）",
-        "clip_sequence": "clip 碱基，与参考同向；left clip 是 read 5' 端那一段",
+        "clip_sequence": (
+            "clip 碱基，与参考同向；left = 比对块左侧那一段（反向链 read 上是 read 的 3' 端）"
+        ),
     },
     "insertion_clip_consensus": {
         "sample": "样本名（BAM 文件名首个 . 之前的部分）",
@@ -289,7 +291,7 @@ COLUMN_DOC: dict[str, dict[str, str]] = {
             "中断原因：all columns / coverage<2 (only N reads) / 2-read overlap mismatch / no clip"
         ),
         "consensus_sequence": (
-            "一致性序列（该侧无序列写 -）；left 侧以接头端为 0 列，即插入片段 5' 端的反向互补"
+            "一致性序列（该侧无序列写 -）；left 侧以接头端为第 0 列、向断点外侧延伸（参考方向）"
         ),
     },
     "coverage_region": {
@@ -306,7 +308,7 @@ COLUMN_DOC: dict[str, dict[str, str]] = {
         "mean_baseq": "被覆盖位置上的平均碱基质量（只出现在终端摘要，图中不显示）",
         "covered_bases": "被覆盖的碱基数（深度 >= min_depth 的位置数）",
         "percent_covered": "覆盖广度百分比 0-100（= covered_bases / region_length_bp）",
-        "mean_depth": "全区间平均深度（分母是区间长度，不是覆盖碱基数）",
+        "mean_depth": "全区间平均深度（分子只累加被覆盖位置，分母是区间长度）",
     },
     "coverage_bins": {
         "bin_index": "第几个 bin，从 1 开始",

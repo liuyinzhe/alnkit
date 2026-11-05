@@ -77,6 +77,25 @@ def test_make_bin_edges(region_length: int, bins: int, expected: list[int]) -> N
     assert coverage_stats.make_bin_edges(region_length, bins).tolist() == expected
 
 
+def test_bin_edges_are_strictly_increasing_for_one_bp_bins() -> None:
+    """1 bp/bin：边界必须是 1,2,3…（早先把闭区间右端当边界会得到零宽，图会空白）。"""
+    rows = [
+        {
+            "bin_index": str(index + 1),
+            "bin_start_1based": str(index + 1),
+            "bin_end_1based": str(index + 1),
+            "bin_width_bp": "1",
+            "covered_bases": "1",
+            "depth_sum": "2",
+        }
+        for index in range(3)
+    ]
+    boundaries, breadth_percent, mean_depth = coverage_plot.bin_arrays(rows)
+    assert boundaries == [1, 2, 3, 4]
+    assert breadth_percent == [100.0, 100.0, 100.0]
+    assert mean_depth == [2.0, 2.0, 2.0]
+
+
 def test_default_bins() -> None:
     assert coverage_plot.default_bins(1416, None) == 60  # 下限
     assert coverage_plot.default_bins(100_000, None) == 2000  # 上限
@@ -414,6 +433,50 @@ def test_cli_list_references(capsys) -> None:
     out = capsys.readouterr().out
     assert out.splitlines()[0] == "reference\tlength\tmapped"
     assert out.splitlines()[1].startswith("chr1\t2200\t")
+
+
+def test_cli_filters_are_passed_through(tmp_path: Path, capsys) -> None:
+    """--ff 放宽 flag 过滤、--min-len 抬门槛：两者都该改变选中 read 数。"""
+    common = ["short", "coverage", "--bam", str(BAM), "--region", "chr1:1-2000", "--bins", "8"]
+    assert main(common + ["--out-dir", str(tmp_path), "--name", "default"]) == 0
+    assert "29 reads" in capsys.readouterr().out
+    assert main(common + ["--out-dir", str(tmp_path), "--name", "unfiltered", "--ff", ""]) == 0
+    assert "31 reads" in capsys.readouterr().out
+    assert main(common + ["--out-dir", str(tmp_path), "--name", "long", "--min-len", "101"]) == 0
+    assert "0 reads" in capsys.readouterr().out
+
+
+def test_cli_requires_region_unless_list(tmp_path: Path, capsys) -> None:
+    assert main(["short", "coverage", "--bam", str(BAM), "--out-dir", str(tmp_path)]) == 2
+    assert "--region" in capsys.readouterr().err
+
+
+def test_cli_rejects_name_with_directory(tmp_path: Path, capsys) -> None:
+    code = main(
+        [
+            "short",
+            "coverage",
+            "--bam",
+            str(BAM),
+            "--region",
+            "chr1:1-2000",
+            "--out-dir",
+            str(tmp_path),
+            "--name",
+            "sub/demo",
+        ]
+    )
+    assert code == 2
+    assert "--name" in capsys.readouterr().err
+
+
+def test_cli_list_needs_index(tmp_path: Path, capsys) -> None:
+    import shutil
+
+    copy = tmp_path / "noindex.bam"
+    shutil.copy(BAM, copy)
+    assert main(["short", "coverage", "--bam", str(copy), "--list"]) == 2
+    assert "索引" in capsys.readouterr().err
 
 
 def test_cli_rejects_missing_bam(tmp_path: Path, capsys) -> None:

@@ -156,7 +156,7 @@ def load_clip_reads(
 ) -> list[ClipRead]:
     """读取区间内带 soft clip 的 primary 比对，组装成 :class:`ClipRead` 列表。
 
-    输入示例: bam_path=reads.bam, chrom="chr6", span_start=99200, span_end=100800
+    输入示例: bam_path=reads.bam, chrom="chr1", span_start=99200, span_end=100800
     输出示例::
 
         [ClipRead(read_name="readA", ref_start=99900, ref_end=100000, clip_side="right",
@@ -229,8 +229,10 @@ def build_clip_consensus(
         3. 只有 2 条重叠且不一致时立刻中断（``2-read overlap mismatch``）；
         4. 多数并列时按碱基字母定序，保证同一输入永远得到同一结果。
 
-    输入示例: 15 条左 clip（其中一条 10 bp、其余 60 bp），clip_side="left"
-    输出示例: ("GCATTT…"(10 bp), [15, 15, …], 15, 0.9933, "coverage<2 (only 1 reads)")
+    输入示例: 15 条左 clip（其中 14 条 60 bp、一条 10 bp），clip_side="left"
+    输出示例: ("GCATTT…"(60 bp), [15, 15, …], 15, 1.0, "all columns")
+              第 11 列起只剩 14 条 read，仍 >= min_support，所以一路走完；
+              若长 read 只剩 1 条，则会在第 11 列给出 "coverage<2 (only 1 reads)"。
 
     返回: (一致性序列, 每列支持深度, 参与 read 数, 一致率, 中断原因)
     """
@@ -372,10 +374,10 @@ def validate_breakpoints(
 def clip_read_rows(clip_reads: Iterable[ClipRead], chrom: str, sample: str) -> list[dict[str, Any]]:
     """把 ``ClipRead`` 转成 ``insertion_clip_reads`` 的行（列序由表契约决定）。
 
-    输入示例: clip_reads=[ClipRead(ref_start=99940, clip_side="left", …)], chrom="chr6"
+    输入示例: clip_reads=[ClipRead(ref_start=99940, clip_side="left", …)], chrom="chr1"
     输出示例::
 
-        [{"sample": "sampleA", "chrom": "chr6", "breakpoint_0based": 100000,
+        [{"sample": "sampleA", "chrom": "chr1", "breakpoint_0based": 100000,
           "clip_side": "left", "read_name": "readA", "clip_length_bp": 60, …}]
     """
     return [
@@ -403,7 +405,7 @@ def consensus_rows(groups: Iterable[ClipGroup], chrom: str, sample: str) -> list
     输入示例: groups=[ClipGroup(breakpoint=100000, side="left", consensus="GCAT…", …)]
     输出示例::
 
-        [{"sample": "sampleA", "chrom": "chr6", "breakpoint_0based": 100000,
+        [{"sample": "sampleA", "chrom": "chr1", "breakpoint_0based": 100000,
           "breakpoint_1based": 100000, "clip_side": "left", "n_reads": 15,
           "consensus_bp": 60, "consensus_fraction": 1.0, "stop_reason": "all columns",
           "consensus_sequence": "GCAT…"}]
@@ -472,32 +474,17 @@ def write_consensus_table(
     )
 
 
-#: 从表里读回来时必需的列（少一列就报错，而不是画出一张空图）
-_CLIP_TABLE_COLUMNS = (
-    "chrom",
-    "breakpoint_0based",
-    "clip_side",
-    "read_name",
-    "read_length",
-    "strand",
-    "mapq",
-    "ref_start_0based",
-    "ref_end_0based",
-    "clip_length_bp",
-    "clip_sequence",
-)
-
-
 def read_clip_table(path: str | Path) -> tuple[list[ClipRead], str]:
     """读 ``insertion_clip_reads`` 表，返回 (逐 read 证据, 参考序列名)。
 
     输入示例: path=out/demo.clips.tsv
-    输出示例: ([ClipRead(ref_start=99940, clip_side="left", …), …], "chr6")
+    输出示例: ([ClipRead(ref_start=99940, clip_side="left", …), …], "chr1")
+
+    异常: 表头不是注册列序、或表里没有行时抛 ``RunError``（退出码 1）。
     """
     header, rows = tables.read_tsv(path)
-    missing = [column for column in _CLIP_TABLE_COLUMNS if column not in header]
-    if missing:
-        raise UsageError(f"{path} 缺少列: {', '.join(missing)}（不是 insertion_clip_reads 表？）")
+    if tuple(header) != tables.columns_of("insertion_clip_reads"):
+        raise RunError(f"{path} 的列与注册表不一致：{header}")
     if not rows:
         raise RunError(f"{path} 里没有任何 clip read")
 

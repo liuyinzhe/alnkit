@@ -10,15 +10,19 @@
 产物：``reads.bam``（+ ``.bai``）；位点布局见 ``SITES``。
 
 ``expected.consensus.legacy.tsv`` 由**独立脚本**（并入前的
-``insertion_schematic.py --site-table``）对同一个 BAM 生成，是黄金对账的来源；
-回归命令（在 alnkit 仓库根目录执行）::
+``insertion_schematic.py --site-table``）对同一个 BAM 生成，是黄金对账的来源。
+重建步骤（在 alnkit 仓库根目录执行，``$OLD`` 指向并入前的脚本目录）::
 
-    for site in "" "--junction 100000" "--junction 150000" "--junction 180000"; do ...
-    python ../insertion_schematic/insertion_schematic.py --bam tests/fixtures/insertion/reads.bam \\
-        --chrom chr1 --start 0 --end 200000 $site --outdir /tmp/legacy \\
-        --site-table /tmp/legacy/sites.tsv
+    python $OLD/insertion_schematic.py --bam tests/fixtures/insertion/reads.bam \\
+        --chrom chr1 --start 0 --end 200000 --junction 100000 \\
+        --outdir /tmp/legacy --site-table /tmp/legacy/1.tsv
+    python $OLD/insertion_schematic.py --bam tests/fixtures/insertion/reads.bam \\
+        --chrom chr1 --start 0 --end 200000 --junction 120000 --junction 120230 \\
+        --outdir /tmp/legacy --site-table /tmp/legacy/2.tsv
+    python $OLD/insertion_schematic.py ... --junction 150000 --site-table /tmp/legacy/3.tsv
+    python $OLD/insertion_schematic.py ... --junction 180000 --site-table /tmp/legacy/4.tsv
 
-四个位点各跑一次后按 ``breakpoint_1based`` 排序拼接（表头只留一行）。
+把四份数据行（去掉表头）按 ``breakpoint_1based`` 升序拼接，再在文件头补 4 行 ``#`` 注释。
 注意旧脚本的 ``breakpoint_1based`` 是“边界 + 1”，alnkit 的口径是“左侧碱基的
 1-based 坐标”（数值等于 0-based 边界），所以对账时差 1。
 """

@@ -17,7 +17,7 @@ import pytest
 
 from alnkit.cli import main
 from alnkit.core import tables
-from alnkit.core.errors import UsageError
+from alnkit.core.errors import RunError, UsageError
 from alnkit.plot import insertion as insertion_plot
 from alnkit.shortread import insertion
 
@@ -72,7 +72,21 @@ def test_identify_soft_clip(cigar, sequence_length, expected) -> None:
     side, length, sequence = insertion.identify_soft_clip(alignment)
     assert (side, length) == expected
     assert len(sequence) == expected[1]
-    assert sequence == sequence.upper()
+
+
+def test_identify_soft_clip_uppercases_sequence() -> None:
+    """小写碱基要统一成大写（BAM 里通常是大写，但不能假设）。"""
+    alignment = pysam.AlignedSegment()
+    alignment.query_name = "read"
+    alignment.query_sequence = "acgtACGT" + "ACGT" * 2
+    alignment.query_qualities = pysam.qualitystring_to_array("I" * 16)
+    alignment.reference_id = 0
+    alignment.reference_start = 0
+    alignment.mapping_quality = 60
+    alignment.cigartuples = [(4, 8), (0, 8)]
+
+    side, length, sequence = insertion.identify_soft_clip(alignment)
+    assert (side, length, sequence) == ("left", 8, "ACGTACGT")
 
 
 # ------------------------------------------------------- 一致性序列（投票规则）
@@ -202,7 +216,7 @@ def test_consensus_table_uses_boundary_convention(tmp_path: Path, clip_reads) ->
 def test_read_clip_table_rejects_foreign_table(tmp_path: Path) -> None:
     path = tmp_path / "wrong.tsv"
     path.write_text("chrom\tpos_1based\tdepth\nchr1\t1\t2\n", encoding="utf-8")
-    with pytest.raises(UsageError, match="缺少列"):
+    with pytest.raises(RunError, match="列与注册表不一致"):
         insertion.read_clip_table(path)
 
 
@@ -372,6 +386,49 @@ def test_cli_writes_png_and_both_tables(tmp_path: Path, capsys) -> None:
     assert (tmp_path / "demo.clips.tsv").exists()
     _header, rows = tables.read_tsv(tmp_path / "demo.consensus.tsv")
     assert sorted(row["clip_side"] for row in rows) == ["left", "right"]
+
+
+def test_cli_no_formula_makes_smaller_figure(tmp_path: Path) -> None:
+    base = [
+        "short",
+        "insertion-plot",
+        "--bam",
+        str(BAM),
+        "--region",
+        "chr1:99101-100900",
+        "--breakpoint",
+        str(BOTH_SIDES),
+        "--out-dir",
+        str(tmp_path),
+        "--dpi",
+        "100",
+    ]
+    assert main(base + ["--name", "with_formula"]) == 0
+    assert main(base + ["--name", "no_formula", "--no-formula", "--no-consensus-text"]) == 0
+    full = (tmp_path / "with_formula.png").stat().st_size
+    plain = (tmp_path / "no_formula.png").stat().st_size
+    assert plain < full  # 烟测：说明文字确实进了图
+
+
+def test_cli_rejects_name_with_directory(tmp_path: Path, capsys) -> None:
+    code = main(
+        [
+            "short",
+            "insertion-plot",
+            "--bam",
+            str(BAM),
+            "--region",
+            "chr1:149001-151000",
+            "--breakpoint",
+            str(LEFT_ONLY),
+            "--out-dir",
+            str(tmp_path),
+            "--name",
+            "sub/demo",
+        ]
+    )
+    assert code == 2
+    assert "--name" in capsys.readouterr().err
 
 
 def test_cli_rejects_unknown_breakpoint(tmp_path: Path, capsys) -> None:

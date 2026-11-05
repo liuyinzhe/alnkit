@@ -23,8 +23,8 @@ pytestmark = pytest.mark.skipif(
 
 REPO = Path(__file__).resolve().parents[1]
 
-#: 扫描的文本文件（只扫会随包/仓库分发的内容）
-SCAN_SUFFIXES = {".py", ".md", ".toml", ".yml", ".yaml", ".txt", ".cfg", ".cff"}
+#: 扫描的文本文件（只扫会随包/仓库分发的内容）；.tsv 覆盖 fixtures 里的黄金表
+SCAN_SUFFIXES = {".py", ".md", ".toml", ".yml", ".yaml", ".txt", ".cfg", ".cff", ".tsv"}
 SKIP_DIRS = {
     ".git",
     "site",
