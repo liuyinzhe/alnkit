@@ -148,6 +148,10 @@ alnkit short coverage --bam reads.sorted.bam --region chr1:1-2000 --bins 8 \
   区间展示串一律 1-based 闭区间 `chrom:start-end`。见 `docs/concepts/coordinates.md`。
 - **表是接口**：所有分析先落成 TSV，图从 TSV 出；列的增删受契约测试约束。
 - **退出码**：`0` 成功 / `1` 运行期错误 / `2` 参数或前置校验失败。
+- **示例一律用合成占位**：`sampleA`/`sampleB`、`target_ref`/`homolog_ref`/`decoy_ref`、
+  `insertA`/`insertB`、`chr1`/`chr2`、百万级合成坐标。仓库里不出现真实样本名、构建体名、
+  真实基因组坐标、本机绝对路径与邮箱——docstring 的"输入示例"、fixture、CHANGELOG 的
+  "实测"叙述都算；坐标这类数字自动测试抓不到，提交前需要人工过一遍。
 
 ## 为什么自带组装器（而不是让你用 hifiasm / miniasm）
 
