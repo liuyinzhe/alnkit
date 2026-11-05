@@ -37,7 +37,7 @@
 ### Added
 
 - `short scan` 新增 **`--min-sr-support`**（默认 `1` = 不过滤，历史产物逐字节不变）：
-  按位点支持数（SR+PESR）过滤，用来清掉单 read 噪声位点。实测（20260103 数据）
+  按位点支持数（SR+PESR）过滤，用来清掉单 read 噪声位点。实测（私有测试数据）
   `--min-sr-support 2` 让位点 7 → 3，噪声全清而真位点（SR=140/PESR=7）保留；
   统计里新增 `sites_dropped_by_min_support`。
 - `short scan` 新增 **`--interference-scope {all,other}`**（默认 `all` = 历史口径）：
@@ -49,8 +49,8 @@
   回比到**每个候选位点周围 ±`--homology-window-bp`（默认 50 kb）的参考窗口**（`-x splice` 处理
   cDNA 样插入、`-x asm20` 处理连续插入，一致率用 `cs` 标签的真实差异算），标出位点是否落在
   与外源同源的区域里；`--homology-bed` 可直接给已知同源基因/区域的 BED，两者可并用。
-  实测（20260103 数据）：真位点 chr6:73,521,229 判为 `no`，两个内源 GLP1R 位点判为 `yes`
-  （region chr6:39,048,841-39,086,070、identity 1.0000、插入覆盖 98.1%），开销 0.3 秒。
+  实测（私有测试数据）：真位点 chr1:2,000,229 判为 `no`，两个内源同源位点判为 `yes`
+  （region chr1:1,000,000-1,037,229、identity 1.0000、插入覆盖 98.1%），开销 0.3 秒。
   两个坑写进了实现注释：`asm20` 找不到 cDNA 样插入；`splice` 的 PAF `alnlen`/`matches` 都不能
   直接算一致率（会得出 3.7% 或 100%），必须用 `cs`。
 

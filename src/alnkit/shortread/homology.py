@@ -1,7 +1,7 @@
 """同源位点诊断：位点是不是落在“与某条插入序列同源的基因组区域”里。
 
 为什么需要：二代插入分析最常见的假阳性来自**外源与基因组内源序列同源**（例如外源
-`GLP1R-FLAG` 与内源 `GLP1R` 有 ~99% 同源）。这些位点的 SR/PESR 支持同样很高，却根本不是
+`insertA` 与参考里的内源同源片段有 ~99% 同源）。这些位点的 SR/PESR 支持同样很高，却根本不是
 整合位点。现有 `is_homology_interference` 只比较"插入序列之间"，看不到这种情况。
 
 两种证据来源，可单独或同时使用：
@@ -54,7 +54,7 @@ class HomologyRegion:
     chrom: str
     start_0based: int
     end_0based: int
-    source: str  # "insert:GLP1R-FLAG" 或 "bed:known_glp1r"
+    source: str  # "insert:insertA" 或 "bed:homologA"
     identity: Optional[float]  # BED 来源没有一致率
     query_coverage: Optional[float] = None  # 插入序列被这段区域覆盖的比例
 
@@ -62,8 +62,8 @@ class HomologyRegion:
 def load_bed_regions(paths: Sequence[Path]) -> List[HomologyRegion]:
     """读 BED（0-based 半开），每行 ``chrom start end [name]``；name 缺省用文件名。
 
-    输入示例（known.bed）: ``chr6  39048000  39087000  GLP1R``
-    输出示例: [HomologyRegion('chr6', 39048000, 39087000, 'bed:GLP1R', None)]
+    输入示例（known.bed）: ``chr1  1000000  1037000  homologA``
+    输出示例: [HomologyRegion('chr1', 1000000, 1037000, 'bed:homologA', None)]
     """
     regions: List[HomologyRegion] = []
     for path in paths:
@@ -125,8 +125,8 @@ def _best_local_hit(
 ) -> Optional[Tuple[str, float, int, int]]:
     """把插入序列比对到一段参考窗口，返回最佳命中 (插入名, 一致率, 窗口内起点, 终点)。
 
-    输入示例: 窗口 10 kb、插入 GLP1R-FLAG 1416 bp
-    输出示例: ('GLP1R-FLAG', 0.988, 3000, 3400)
+    输入示例: 窗口 10 kb、插入 insertA 1200 bp
+    输出示例: ('insertA', 0.988, 3000, 3400)
 
     说明: 同时用 ``splice`` 与 ``asm20`` 两个预设（前者处理 cDNA 样插入，后者处理连续插入），
           取一致率最高的命中；一致率按**插入侧比对长度**算（splice 的 PAF ``alnlen`` 含内含子，
@@ -205,9 +205,9 @@ def local_homology_regions(
 ) -> List[HomologyRegion]:
     """对每个候选位点做“插入序列 vs 位点周围窗口”的局部回比，返回同源区域。
 
-    输入示例: sites=[('chr6', 39048838), ('chr6', 73521229)], window_bp=5000
-    输出示例: [HomologyRegion('chr6', 39043838, 39048838, 'insert:GLP1R-FLAG', 0.988)]
-              （整合位点 chr6:73521229 附近比不中插入，所以不产生区域）
+    输入示例: sites=[('chr1', 1000000), ('chr1', 2000229)], window_bp=5000
+    输出示例: [HomologyRegion('chr1', 995000, 1000000, 'insert:insertA', 0.988)]
+              （整合位点 chr1:2000229 附近比不中插入，所以不产生区域）
 
     说明: 只比小窗口，所以内存是 MB 级；不需要把插入比到 3 Gb 全基因组（splice 预设对
           hg38 的索引要 ~15 GB，普通机器会 OOM，实测过）。
@@ -265,11 +265,11 @@ def annotate_sites(
     """给每个位点标注是否落在同源区域里，返回可直接写表的行。
 
     输入示例:
-        sites = [('chr6', 39048838), ('chr6', 73521229)]
-        regions = [HomologyRegion('chr6', 39043838, 39048838, 'insert:GLP1R-FLAG', 0.988)]
+        sites = [('chr1', 1000000), ('chr1', 2000229)]
+        regions = [HomologyRegion('chr1', 995000, 1000000, 'insert:insertA', 0.988)]
     输出示例:
-        [{'chrom': 'chr6', 'insert_pos_1based': 39048838, 'is_homology_site': 'yes', ...},
-         {'chrom': 'chr6', 'insert_pos_1based': 73521229, 'is_homology_site': 'no', ...}]
+        [{'chrom': 'chr1', 'insert_pos_1based': 1000000, 'is_homology_site': 'yes', ...},
+         {'chrom': 'chr1', 'insert_pos_1based': 2000229, 'is_homology_site': 'no', ...}]
 
     说明: 位点坐标是 legacy 的 ``Insert_Position``（断点左侧碱基 1-based，数值上等于 0-based
           边界）；判定用该位置与区域的重叠，并向两侧各放宽 ``PADDING_BP``——断点常落在同源区

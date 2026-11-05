@@ -590,7 +590,7 @@ def side_table_lines(reads, full_read_names):
     """生成侧边注释表的文本行（纯函数，便于测试）。
 
     输入示例: side_table_lines(reads, False)
-    输出示例: ["1002  (read 21,544 bp)", "  1. genome chr1 3,000,000-176,669,985 (-)  read 0-13,698", ...]
+    输出示例: ["1002  (read 21,544 bp)", "  1. genome chr1 3,000,000-40,000,000 (-)  read 0-13,698", ...]
     """
     read_names = sorted(reads)
     labels = read_labels(read_names, full_read_names)
