@@ -105,3 +105,72 @@
 | 7 | `ref_end_0based` | 0-based | 参考终点，0-based 半开（不含） |
 | 8 | `block_bp` | — | 块长度（= ref_end - ref_start） |
 | 9 | `identity` | — | 一致率，0-1 浮点，固定 4 位小数 |
+
+## `insertion_clip_reads`
+
+| # | 列名 | 基准 | 说明 |
+|---|---|---|---|
+| 1 | `sample` | — | 样本名（BAM 文件名首个 . 之前的部分） |
+| 2 | `chrom` | — | 参考序列名 |
+| 3 | `breakpoint_0based` | 0-based | 断点边界，0-based（数值等于断点左侧碱基的 1-based 坐标） |
+| 4 | `clip_side` | — | clip 在比对块的哪一侧：left / right |
+| 5 | `read_name` | — | read 名（与 BAM 一致） |
+| 6 | `read_length` | — | read 长度（含 soft clip 的碱基，bp） |
+| 7 | `strand` | — | 比对方向：+ / - |
+| 8 | `mapq` | — | MAPQ |
+| 9 | `ref_start_0based` | 0-based | 比对块起点，0-based 半开 |
+| 10 | `ref_end_0based` | 0-based | 比对块终点，0-based 半开（不含） |
+| 11 | `clip_length_bp` | — | soft clip 长度（bp） |
+| 12 | `clip_sequence` | — | clip 碱基，与参考同向；left clip 是 read 5' 端那一段 |
+
+## `insertion_clip_consensus`
+
+| # | 列名 | 基准 | 说明 |
+|---|---|---|---|
+| 1 | `sample` | — | 样本名（BAM 文件名首个 . 之前的部分） |
+| 2 | `chrom` | — | 参考序列名 |
+| 3 | `breakpoint_0based` | 0-based | 断点边界，0-based |
+| 4 | `breakpoint_1based` | 1-based | 同一个断点，按“左侧碱基的 1-based 坐标”写（数值与 0based 列相同） |
+| 5 | `clip_side` | — | left / right |
+| 6 | `n_reads` | — | 该侧参与投票的 clip read 数（候选数，不代表每个碱基都投了票） |
+| 7 | `consensus_bp` | — | 一致性序列长度（bp） |
+| 8 | `consensus_fraction` | — | 一致率 0-1（每列多数碱基数之和 / 全部条数之和） |
+| 9 | `stop_reason` | — | 中断原因：all columns / coverage<2 (only N reads) / 2-read overlap mismatch / no clip |
+| 10 | `consensus_sequence` | — | 一致性序列（该侧无序列写 -）；left 侧以接头端为 0 列，即插入片段 5' 端的反向互补 |
+
+## `coverage_region`
+
+| # | 列名 | 基准 | 说明 |
+|---|---|---|---|
+| 1 | `sample` | — | 样本名（BAM 文件名首个 . 之前的部分） |
+| 2 | `chrom` | — | 参考序列名 |
+| 3 | `region_start_1based` | 1-based | 统计区间起点，1-based 闭区间 |
+| 4 | `region_end_1based` | 1-based | 统计区间终点，1-based 闭区间 |
+| 5 | `region_length_bp` | — | 区间长度（bp） |
+| 6 | `n_bins` | — | 分箱个数（= coverage_bins 的行数） |
+| 7 | `n_reads_total` | — | fetch 到的比对记录数（含被过滤掉的） |
+| 8 | `n_reads_selected` | — | 通过 flag / mapQ / 长度过滤的 read 数 |
+| 9 | `n_reads_filtered` | — | 被过滤掉的 read 数（= 总数 - 选中数） |
+| 10 | `mean_mapq` | — | 选中 read 的平均比对质量 |
+| 11 | `mean_baseq` | — | 被覆盖位置上的平均碱基质量（只出现在终端摘要，图中不显示） |
+| 12 | `covered_bases` | — | 被覆盖的碱基数（深度 >= min_depth 的位置数） |
+| 13 | `percent_covered` | — | 覆盖广度百分比 0-100（= covered_bases / region_length_bp） |
+| 14 | `mean_depth` | — | 全区间平均深度（分母是区间长度，不是覆盖碱基数） |
+
+## `coverage_bins`
+
+| # | 列名 | 基准 | 说明 |
+|---|---|---|---|
+| 1 | `bin_index` | — | 第几个 bin，从 1 开始 |
+| 2 | `bin_start_1based` | 1-based | bin 起点，1-based 闭区间 |
+| 3 | `bin_end_1based` | 1-based | bin 终点，1-based 闭区间（相邻 bin 首尾相接） |
+| 4 | `bin_width_bp` | — | bin 宽度（bp）；最后一个 bin 吸收除不尽的余数 |
+| 5 | `covered_bases` | — | bin 内被覆盖的碱基数 |
+| 6 | `depth_sum` | — | bin 内逐碱基深度之和（除以宽度就是该 bin 的平均深度） |
+
+## `coverage_bases`
+
+| # | 列名 | 基准 | 说明 |
+|---|---|---|---|
+| 1 | `pos_1based` | 1-based | 碱基坐标，1-based |
+| 2 | `depth` | — | 该位置的深度（已按 --max-depth 封顶） |

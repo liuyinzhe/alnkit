@@ -8,13 +8,16 @@
       │     └── evidence       SR / PESR / DUP 证据抽取与按位点聚合
       ├── merge    位点窗口合并（只用 model 的类型）
       ├── report   三张结果表写出（只用 model 的类型）
+      ├── insertion 插入位点示意图的证据层：soft clip → 两张表（不画图）
+      ├── coverage  覆盖度统计：逐碱基深度 → 分箱 → 两张表（不画图）
       └── origin   归属判定（用到 bam / evidence / interference）
                     ↓
                   scan   编排层（导入以上全部），并 re-export 它们的公开名
 
 ``model`` 不导入任何同包模块；``scan`` 是唯一的总装点。
+``insertion`` / ``coverage`` 只依赖 ``core``（不依赖 ``scan``），绘图在 ``plot`` 层。
 """
 
 from __future__ import annotations
 
-__all__ = ["scan"]
+__all__ = ["coverage", "insertion", "scan"]

@@ -62,9 +62,8 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
   建议 -a -h 20；比对后不要用 samtools -F 2048 / -F 256 / -q 过滤。
 ```
 
-```text
-示例:
-  alnkit short scan --bam-dir ./bam --query-chr target_ref \
+```bash
+alnkit short scan --bam-dir ./bam --query-chr target_ref \
       --insert-chrs decoy_ref,homolog_ref,target_ref \
       --merge-window-bp 10 --out-dir out
   alnkit short scan --self-test

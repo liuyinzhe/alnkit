@@ -3,6 +3,27 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 SemVer。
 条目按功能 ID（`A*` 三代 / `B*` 二代 / `C*` 绘图 / `D*` 公共层）分组，ID 定义见规划文档。
 
+## [Unreleased]
+
+### Added
+
+- **`short insertion-plot`**（新命令，两张新表）：外源插入位点示意图。按“几个断点 +
+  几侧 soft clip”自动选画法（单侧 / 同断点双侧 / 多断点），并算 soft clip 一致性序列。
+  并自独立脚本 `insertion_schematic.py`，并入时**出图改成从 TSV 出**：先写
+  `insertion_clip_reads`（逐 read 的 clip 证据）与 `insertion_clip_consensus`
+  （逐列投票结果），再由表渲染 PNG。
+  坐标口径按 `core/coords.py` 统一：`--breakpoint` 与表里的 `breakpoint_1based` 都是
+  “断点左侧碱基的 1-based 坐标”（旧脚本标签是边界 + 1，图里数字因此少 1，位置不变）。
+- **`short coverage`**（新命令，三张新表）：区间覆盖广度与平均深度，可选 BED 基因轨道。
+  并自独立包 `coverage_viz`，同样改成从表出图：`coverage_region`（一行汇总）、
+  `coverage_bins`（逐 bin）、`coverage_bases`（`--bases-table` 才写）。指标口径与
+  `samtools coverage` 一致（`M`/`=`/`X` 计深，`D`/`N` 不算覆盖，平均深度的分母是区间长度）。
+- 新表（5 张，均已进 `docs/concepts/tables.md`）：`insertion_clip_reads`、
+  `insertion_clip_consensus`、`coverage_region`、`coverage_bins`、`coverage_bases`。
+- 合成 fixture 与黄金对账：`tests/fixtures/insertion/`、`tests/fixtures/coverage/`
+  由各自的 `make_fixture.py` 生成（坐标全在 2 kb 内，无真实数据）；黄金 TSV 由**并入前的
+  独立脚本**对同一份 BAM 产出，回归时逐列比对（共 76 个新用例）。
+
 ## [0.5.0] - 2026-11-03
 
 ### Added

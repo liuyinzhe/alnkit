@@ -37,6 +37,8 @@ nav:
       - plot tracks: cli/alnkit-plot-tracks.md
       - plot ribbon: cli/alnkit-plot-ribbon.md
       - short scan: cli/alnkit-short-scan.md
+      - short insertion-plot: cli/alnkit-short-insertion-plot.md
+      - short coverage: cli/alnkit-short-coverage.md
       - long classify: cli/alnkit-long-classify.md
       - long graph: cli/alnkit-long-graph.md
       - long breakpoints: cli/alnkit-long-breakpoints.md

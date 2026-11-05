@@ -57,6 +57,12 @@ alnkit short scan     --bam-dir ./bams --query-chr target_ref \
 # 绘图（零上游依赖）
 alnkit plot tracks    --segments-tsv seg.tsv --outdir out --name tracks
 alnkit plot ribbon    --paf aln.paf --reference-name assembly_a --outdir out --name ex4
+
+# 二代出图：BAM → 表 → 图
+alnkit short insertion-plot --bam reads.sorted.bam --region chr1:99201-100800 \
+                      --breakpoint 100000 --out-dir out --name single
+alnkit short coverage --bam reads.sorted.bam --region chr1:1-20000 --bins 400 \
+                      --out-dir out --name region
 ```
 
 完整的参数说明见文档站的 **CLI 参考**（由 `--help` 自动生成）。
@@ -95,11 +101,42 @@ alnkit selftest        # 内置断言（坐标/表契约 + 二代断点口径，
 | `alnkit plot tracks` | 单 read 轨道图（BAM / PAF / 段表） | 可用 |
 | `alnkit plot ribbon` | 共线性丝带图（内部比对 / 现成 PAF） | 可用 |
 | `alnkit short scan` | 二代插入断点证据（SR / PESR / DUP）三张表 | 可用 |
+| `alnkit short insertion-plot` | 外源插入位点示意图（单侧 / 同断点双侧 / 多断点）+ 两张证据表 | 可用 |
+| `alnkit short coverage` | 区间覆盖广度与深度（可选 BED 基因轨道）+ 两张统计表 | 可用 |
 | `alnkit long classify` | 三代目标 reads 分类 + 接头位点/区域 | 可用 |
 | `alnkit long graph` | read-vs-read overlap 边与连通分量 | 可用 |
 | `alnkit long breakpoints` | 三代断点（S##/G##）+ 共享 reads 合并成类 + 类池 | 可用 |
 | `alnkit long assemble` | 三代每类 junction 局部延伸组装 + 组装支撑度报告 | 可用 |
 | `alnkit long locate` | 三代 50 bp 锚点 + 外源 → 丝带图 + 参考坐标还原 | 可用 |
+
+## 二代出图（`short insertion-plot` / `short coverage`）
+
+两个命令都是 **BAM → TSV → PNG**：先写表（`insertion_clip_reads` / `insertion_clip_consensus`、
+`coverage_region` / `coverage_bins`），再由表渲染。图能画出来就证明表足够画这张图；
+同一份表可以重新出图、也可以拿去和旧结果对账。
+
+`short insertion-plot` 按“给了几个断点 + 每个断点有几侧 clip”自动选画法：
+
+| 输入 | 画法 |
+|---|---|
+| 1 个 `--breakpoint`，只有一侧 soft clip | **单侧图**：未知条 + 彩色块贴在断点一侧 |
+| 1 个 `--breakpoint`，两侧都有 soft clip | **同断点双侧图**：`[左块][未知（合并）][右块]`，两条连线收到断点 |
+| 2–3 个 `--breakpoint` | **多断点图**：每个断点各自 `[未知][块]`，块间强制留间隔 |
+
+固定配色：**蓝 = 左 clip、紫 = 右 clip、灰斜线 = 无证据、红 = 断点**；图内文字全英文。
+同一断点同侧 clip 按“贴比对的那一端”对齐后逐列投票得到一致性序列：每列至少 2 条 read，
+3 条以上取多数，只有 2 条且不一致则中断（`stop_reason` 列写明原因）。
+
+`short coverage` 的口径与 `samtools coverage` 对齐：只有 `M`/`=`/`X` 给深度加 1，
+`D`/`N` 占参考位置但没有碱基不算覆盖，`S`/`I`/`H` 不占参考位置；
+`depth >= --min-depth` 的位置才算“被覆盖”，平均深度的分母是区间长度。
+
+```bash
+alnkit short insertion-plot --bam reads.sorted.bam --region chr1:99101-100900 \
+    --breakpoint 100000 --out-dir out --name both     # -> both.png + 两张表
+alnkit short coverage --bam reads.sorted.bam --region chr1:1-2000 --bins 8 \
+    --bed genes.bed --out-dir out                     # -> <bam主名>.<region>.png + 两张表
+```
 
 ## 关键约定（写文档和写脚本前必读）
 
@@ -150,6 +187,11 @@ hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_as
 - `long locate` 的 PDF 含生成时间，不能与其他运行逐字节比较（测试只比大小）；
   你自己生成的 BAM 与本项目历史产物的字节也不会相同（`@PG` 记录命令行），
   但比对记录本身可用于对账。
+- `short insertion-plot` 的未知区宽度是**示意值**（`max(该侧最大 clip 长度, 100) × 2.6`），
+  不代表真实未知 bp；断点间距小于 clip 长度时，多断点图的彩色块仍可能重叠（只有未知区保证留白）。
+  它只取 primary 比对，不按 MAPQ / duplicate 过滤；首尾同时有 soft clip 时只取较长一侧
+  （并列取 left），硬剪贴 `H` 与 `P` 先剔除。
+- `short coverage` 的逐碱基数组约 12 byte/碱基，区间超过 20 Mb 会直接报错（退出码 2）。
 
 ## 许可
 

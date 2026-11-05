@@ -1,0 +1,11 @@
+# 由独立脚本（并入前的 insertion_schematic.py --site-table）对 reads.bam 生成，用于黄金对账。
+# 重新生成方式见 make_fixture.py 的 docstring。
+# 注意：旧脚本的 breakpoint_1based = 边界 + 1；alnkit 的 breakpoint_1based = 边界（= 左侧碱基的 1-based 坐标）。
+# 其余列（clip_side/n_reads/consensus_bp/consensus_fraction/stop_reason/consensus_sequence）逐字节可比。
+breakpoint_1based	clip_side	n_reads	consensus_bp	consensus_fraction	stop_reason	consensus_sequence
+100001	left	20	60	1.0000	all columns	GCTCTTAAGCGCGTTTCTAGCGCGATTGGCTTCGGTCTTCCTCTGTAGCTAAATTGAGGA
+100001	right	20	55	1.0000	all columns	CGGCCATAAGCGGCAGGGTAGTAGGCCACGAAAGCCGGAACGGTTTCACAAGTAC
+120001	left	12	60	1.0000	all columns	GCTCTTAAGCGCGTTTCTAGCGCGATTGGCTTCGGTCTTCCTCTGTAGCTAAATTGAGGA
+120231	right	12	55	1.0000	all columns	CGGCCATAAGCGGCAGGGTAGTAGGCCACGAAAGCCGGAACGGTTTCACAAGTAC
+150001	left	15	60	1.0000	all columns	GCTCTTAAGCGCGTTTCTAGCGCGATTGGCTTCGGTCTTCCTCTGTAGCTAAATTGAGGA
+180001	right	15	55	1.0000	all columns	CGGCCATAAGCGGCAGGGTAGTAGGCCACGAAAGCCGGAACGGTTTCACAAGTAC

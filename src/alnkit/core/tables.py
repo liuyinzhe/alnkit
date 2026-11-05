@@ -124,6 +124,62 @@ COLUMNS: dict[str, tuple[str, ...]] = {
         "block_bp",
         "identity",
     ),
+    # 外源插入位点示意图的逐 read 证据：`short insertion-plot` 的唯一绘图输入。
+    "insertion_clip_reads": (
+        "sample",
+        "chrom",
+        "breakpoint_0based",
+        "clip_side",
+        "read_name",
+        "read_length",
+        "strand",
+        "mapq",
+        "ref_start_0based",
+        "ref_end_0based",
+        "clip_length_bp",
+        "clip_sequence",
+    ),
+    # 同一批 clip read 逐列投票的结果：每个断点每侧一行（无 read 的侧不出现）。
+    "insertion_clip_consensus": (
+        "sample",
+        "chrom",
+        "breakpoint_0based",
+        "breakpoint_1based",
+        "clip_side",
+        "n_reads",
+        "consensus_bp",
+        "consensus_fraction",
+        "stop_reason",
+        "consensus_sequence",
+    ),
+    # 覆盖度：区域一行汇总（图标题/副标题里的 reads、mapQ、全区间均值都取自这里）。
+    "coverage_region": (
+        "sample",
+        "chrom",
+        "region_start_1based",
+        "region_end_1based",
+        "region_length_bp",
+        "n_bins",
+        "n_reads_total",
+        "n_reads_selected",
+        "n_reads_filtered",
+        "mean_mapq",
+        "mean_baseq",
+        "covered_bases",
+        "percent_covered",
+        "mean_depth",
+    ),
+    # 覆盖度：逐 bin 的广度与深度（`short coverage` 的两个绘图输入之一）。
+    "coverage_bins": (
+        "bin_index",
+        "bin_start_1based",
+        "bin_end_1based",
+        "bin_width_bp",
+        "covered_bases",
+        "depth_sum",
+    ),
+    # 覆盖度：逐碱基深度（`--bases-table` 才写，默认不产出）。
+    "coverage_bases": ("pos_1based", "depth"),
 }
 
 COLUMN_DOC: dict[str, dict[str, str]] = {
@@ -205,6 +261,64 @@ COLUMN_DOC: dict[str, dict[str, str]] = {
         "ref_end_0based": "参考终点，0-based 半开（不含）",
         "block_bp": "块长度（= ref_end - ref_start）",
         "identity": "一致率，0-1 浮点，固定 4 位小数",
+    },
+    "insertion_clip_reads": {
+        "sample": "样本名（BAM 文件名首个 . 之前的部分）",
+        "chrom": "参考序列名",
+        "breakpoint_0based": "断点边界，0-based（数值等于断点左侧碱基的 1-based 坐标）",
+        "clip_side": "clip 在比对块的哪一侧：left / right",
+        "read_name": "read 名（与 BAM 一致）",
+        "read_length": "read 长度（含 soft clip 的碱基，bp）",
+        "strand": "比对方向：+ / -",
+        "mapq": "MAPQ",
+        "ref_start_0based": "比对块起点，0-based 半开",
+        "ref_end_0based": "比对块终点，0-based 半开（不含）",
+        "clip_length_bp": "soft clip 长度（bp）",
+        "clip_sequence": "clip 碱基，与参考同向；left clip 是 read 5' 端那一段",
+    },
+    "insertion_clip_consensus": {
+        "sample": "样本名（BAM 文件名首个 . 之前的部分）",
+        "chrom": "参考序列名",
+        "breakpoint_0based": "断点边界，0-based",
+        "breakpoint_1based": "同一个断点，按“左侧碱基的 1-based 坐标”写（数值与 0based 列相同）",
+        "clip_side": "left / right",
+        "n_reads": "该侧参与投票的 clip read 数（候选数，不代表每个碱基都投了票）",
+        "consensus_bp": "一致性序列长度（bp）",
+        "consensus_fraction": "一致率 0-1（每列多数碱基数之和 / 全部条数之和）",
+        "stop_reason": (
+            "中断原因：all columns / coverage<2 (only N reads) / 2-read overlap mismatch / no clip"
+        ),
+        "consensus_sequence": (
+            "一致性序列（该侧无序列写 -）；left 侧以接头端为 0 列，即插入片段 5' 端的反向互补"
+        ),
+    },
+    "coverage_region": {
+        "sample": "样本名（BAM 文件名首个 . 之前的部分）",
+        "chrom": "参考序列名",
+        "region_start_1based": "统计区间起点，1-based 闭区间",
+        "region_end_1based": "统计区间终点，1-based 闭区间",
+        "region_length_bp": "区间长度（bp）",
+        "n_bins": "分箱个数（= coverage_bins 的行数）",
+        "n_reads_total": "fetch 到的比对记录数（含被过滤掉的）",
+        "n_reads_selected": "通过 flag / mapQ / 长度过滤的 read 数",
+        "n_reads_filtered": "被过滤掉的 read 数（= 总数 - 选中数）",
+        "mean_mapq": "选中 read 的平均比对质量",
+        "mean_baseq": "被覆盖位置上的平均碱基质量（只出现在终端摘要，图中不显示）",
+        "covered_bases": "被覆盖的碱基数（深度 >= min_depth 的位置数）",
+        "percent_covered": "覆盖广度百分比 0-100（= covered_bases / region_length_bp）",
+        "mean_depth": "全区间平均深度（分母是区间长度，不是覆盖碱基数）",
+    },
+    "coverage_bins": {
+        "bin_index": "第几个 bin，从 1 开始",
+        "bin_start_1based": "bin 起点，1-based 闭区间",
+        "bin_end_1based": "bin 终点，1-based 闭区间（相邻 bin 首尾相接）",
+        "bin_width_bp": "bin 宽度（bp）；最后一个 bin 吸收除不尽的余数",
+        "covered_bases": "bin 内被覆盖的碱基数",
+        "depth_sum": "bin 内逐碱基深度之和（除以宽度就是该 bin 的平均深度）",
+    },
+    "coverage_bases": {
+        "pos_1based": "碱基坐标，1-based",
+        "depth": "该位置的深度（已按 --max-depth 封顶）",
     },
 }
 
