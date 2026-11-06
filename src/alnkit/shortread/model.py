@@ -47,7 +47,6 @@ STAT_KEYS = (
     "drop_shared_with_other_insert",
     "reads_shared_with_other_insert",
     "reads_kept",
-    "reads_kept_ambiguous",
     "reads_kept_consensus",
     "drop_consensus_undecided",
     "breakpoints_with_interference",
@@ -89,6 +88,7 @@ class RuntimeConfig(NamedTuple):
     query_chromosome: str
     insert_chromosomes: Tuple[str, ...]
     insert_origin_policy: str
+    drop_shared_reads: bool
     merge_window_bp: int
     mismatch_source: str
     on_missing_tag: str
@@ -126,6 +126,7 @@ class ScanSettings:
     query_chr: str | None = None
     insert_chrs: str | None = None
     insert_origin_policy: str = "owned"
+    drop_shared_reads: bool = False
     merge_window_bp: int = 0
     min_mapq: int = 20
     max_mismatch: int = 3
@@ -252,7 +253,7 @@ class BreakpointEvidence(NamedTuple):
         split_read_names / pair_split_read_names  历史表格用的名字（read_name/read_pair 与 read_name）
         owned_query_read_names                    归属明确 = query 的支持 read
         owned_other_read_names                    归属明确 = 其它插入片段的支持 read（legacy 策略下会非 0）
-        ambiguous_read_names                      归属无法区分的支持 read（lenient 保留，本字段用于标记）
+        ambiguous_read_names                      归属无法区分的支持 read（由 --insert-origin-policy 决定丢弃/投票）
         no_insert_hit_read_names                  未命中任何插入序列的支持 read（legacy 策略下会非 0）
         consensus_read_names                      由“同断点归属投票”推定归属的支持 read（consensus 策略）
         interference_source_read_names            干扰源头 -> 与之同源/共有的支持 read 名单

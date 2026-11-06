@@ -189,22 +189,31 @@ insert_boundary_0based == insert_pos_1based
 | 策略 | 保留谁 | 丢掉谁 | 什么时候用 |
 |---|---|---|---|
 | `owned`（默认） | 归属 **query** 的 read | 归属其它插入、`ambiguous`、`no_insert_hit` | 多外源面板的常规选择：只信“确定属于本外源”的证据 |
-| `owned-strict` | 同 `owned`，但再剔除“归属 query、却在**其它**插入上还有次要/XA 命中”的 read | 上面那些 + 共有 read | 外源之间高度相似（共享接头/载体）时，避免共有 read 把特异位点撑起来 |
-| `lenient` | `owned` + `ambiguous` | 只丢归属其它插入 / 无插入命中 | 判定过严导致支持数太低时的兜底；**不投票，最宽松** |
-| `consensus` | `owned` + 用**同断点投票**推定 `ambiguous` 的归属（附近 ±`--merge-window-bp` 内归属明确的 read 一致指向 query 才保留） | 投票为空或指向不一致的 ambiguous | 同源干扰严重、又不想丢证据时；比 `lenient` 保守（**推断不是测量**） |
+| `consensus` | `owned` + 用**同断点投票**推定 `ambiguous` 的归属（附近 ±`--merge-window-bp` 内归属明确的 read 一致指向 query 才保留） | 投票为空或指向不一致的 ambiguous | 同源干扰严重、又不想丢证据时（**推断不是测量**） |
 | `legacy` | **全部保留**（不做任何归属判定），并自动关闭候选 read 闸门 | 只有质量过滤（MAPQ / 错配 / clip 段数） | 复现旧脚本产物做逐字节对账；`--legacy-profile` 会隐含它 |
+
+另有一个**可叠加的开关**：
+
+| 开关 | 作用 | 说明 |
+|---|---|---|
+| `--drop-shared-reads` | 在 `owned`/`consensus` 之上，再剔除“归属 query、但在**其它**插入上还有次要/XA 命中”的共有 read | 外源之间高度相似（共享接头/载体）时，避免共有 read 把特异位点撑起来；对 `legacy` 无效 |
+
+> 0.7.0 起策略从 5 个减到 3 个：原来的 `owned-strict` 变成 `--drop-shared-reads`（可与
+> `consensus` 组合，旧的枚举值做不到这一点），`lenient`（无条件保留归属不明的 read）已删除
+> —— 它把“不知道属于谁”的 read 当成证据，正是这类工具最该避免的方向。旧命令仍写这两个值
+> 会由 argparse 直接报错并列出可用值。
 
 几点容易踩的：
 
 - **`legacy` 不是“更宽松的 owned”**：它连“没命中任何插入序列的 read”都算证据，位点数会明显变多、
   真位点的支持数反而可能变小（证据被摊到更多位点上）。实测一份 PE 数据：
   `owned` 11 个位点、真位点 SR=125；`legacy` 25 个位点、真位点 SR=87。
-- **`owned-strict` 只看“其它插入”**：query 自己的次要命中不算（那是正常形态），所以单外源面板下
-  它与 `owned` 完全等价。
-- **四种非 legacy 策略可能完全一样**：同一份数据（两条互不同源的外源）上，
-  `owned` / `owned-strict` / `lenient` / `consensus` 产出的三张 legacy 表**逐字节相同**，
-  只有 `legacy` 不同 —— 因为这份数据里没有 `ambiguous`、也没有跨外源的共有 read。
-  它们的分歧**只在**“存在 ambiguous 或共有 read”时才出现。
+- **`--drop-shared-reads` 只看“其它插入”**：query 自己的次要命中不算（那是正常形态），所以
+  单外源面板下它与不开这个开关完全等价。
+- **`owned` / `consensus` / `--drop-shared-reads` 可能完全等价**：同一份数据（两条互不同源的
+  外源）上，`owned`、`owned-strict`（当时的取值）、`lenient`（当时的取值）、`consensus`
+  产出的三张 legacy 表**逐字节相同**，只有 `legacy` 不同 —— 因为这份数据里没有 `ambiguous`、
+  也没有跨外源的共有 read。它们的分歧**只在**“存在 ambiguous 或共有 read”时才出现。
 - 策略只影响“哪些 read 算证据”，不影响干扰表的判定口径（那张表见 §6；它的 `interference_scope`
   是另一个旋钮）。
 

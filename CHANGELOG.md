@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### Removed（破坏性：`--insert-origin-policy` 从 5 个值减到 3 个）
+
+- 删 `owned-strict`：改为开关 **`--drop-shared-reads`**（剔除“归属 query、但在其它插入上还有
+  次要/XA 命中”的共有 read）。好处是可以与 `consensus` 组合，旧的枚举值做不到。
+- 删 `lenient`：它把“归属不明确”的 read 无条件当成证据，方向与这类工具相反（会抬高假位点）。
+  需要利用这批 read 时改用 `consensus`（同断点投票，推断而非猜测）。
+- 保留 `owned`（默认）/ `consensus` / `legacy`。旧命令写上面两个值会由 argparse 直接报错并列出
+  可用值，不会静默改行为。
+- 实测依据：两条互不同源的外源、PE 150 bp 的一份数据上，`owned` / `owned-strict` / `lenient` /
+  `consensus` 产出的三张 legacy 表逐字节相同（只有 `legacy` 不同：位点 11 → 25、
+  真位点 SR 125 → 87），即那两个值只在“存在 ambiguous 或跨外源共有 read”时才有作用。
+
 ### Changed（破坏性：命令改名）
 
 - 两个二代出图命令从 `short` 移到 `plot`，与其他静图命令放在一起：

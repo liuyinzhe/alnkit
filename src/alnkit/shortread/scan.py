@@ -146,6 +146,7 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
         query_chromosome=settings.query_chr,
         insert_chromosomes=insert_chromosomes,
         insert_origin_policy=insert_origin_policy,
+        drop_shared_reads=settings.drop_shared_reads,
         merge_window_bp=settings.merge_window_bp,
         mismatch_source=mismatch_source,
         on_missing_tag=settings.on_missing_tag,
@@ -606,16 +607,16 @@ def run_self_test() -> None:
         == "owned_other"
     )
 
-    # (5c) 两个插入片段得分并列 -> 无法区分（lenient 保留、owned 丢弃）
+    # (5c) 两个插入片段得分并列 -> 无法区分：owned 直接丢，consensus 也只是“待投票”
     assert (
         decide_read_usage([], [tied_hit, target_hit], set(), "target_ref", insert_list, "owned")[1]
         == "drop_ambiguous_insert"
     )
     assert (
-        decide_read_usage([], [tied_hit, target_hit], set(), "target_ref", insert_list, "lenient")[
-            0
+        decide_read_usage([], [tied_hit, target_hit], set(), "target_ref", insert_list, "consensus")[
+            1
         ]
-        is True
+        == "drop_ambiguous_insert"
     )
     # 实测数据里的真实情形：clip 落在三个插入片段共有的 31 bp 序列上 -> 三方并列
     shared_hits = [
@@ -628,12 +629,8 @@ def run_self_test() -> None:
         )[1]
         == "drop_ambiguous_insert"
     )
-    assert (
-        decide_read_usage(
-            [], shared_hits, {"homolog_ref", "decoy_ref"}, "target_ref", insert_list, "lenient"
-        )[0]
-        is True
-    )
+    # 归属不明确的 read 不再有任何“无条件保留”的策略（原 lenient 已删除）
+    assert "lenient" not in ("owned", "consensus", "legacy")
 
     # (5f) 同源干扰源头判定（三种典型情况）与“共有 read”信号抽取
     assert determine_interference_sources("owned_query", {"target_ref"}, {"homolog_ref"}) == {
@@ -656,12 +653,18 @@ def run_self_test() -> None:
     origin, ambiguous, _ = determine_insert_origin([target_hit], ["target_ref"])
     assert (origin, ambiguous) == ("target_ref", False)
 
-    # (5d) 严格模式：归属 query、但在其它序列上还有 secondary/XA 命中 -> 当作共有 read 剔除
+    # (5d) --drop-shared-reads：归属 query、但在其它序列上还有 secondary/XA 命中 -> 剔除
     strict_keep, strict_reason, _, _ = decide_read_usage(
-        [], [target_hit], {"target_ref", "homolog_ref"}, "target_ref", insert_list, "owned-strict"
+        [], [target_hit], {"target_ref", "homolog_ref"}, "target_ref", insert_list,
+        "owned", drop_shared_reads=True
     )
     assert (strict_keep, strict_reason) == (False, "drop_shared_with_other_insert")
-    # 同样输入在 owned 模式下保留（只做归属区分，不剔除共有 read）
+    # 同一开关与 consensus 组合也生效（今天两个需求可同时表达）
+    assert decide_read_usage(
+        [], [target_hit], {"target_ref", "homolog_ref"}, "target_ref", insert_list,
+        "consensus", drop_shared_reads=True
+    )[1] == "drop_shared_with_other_insert"
+    # 不开开关时保留（只做归属区分，不剔除共有 read）
     assert (
         decide_read_usage([], [target_hit], {"homolog_ref"}, "target_ref", insert_list, "owned")[0]
         is True
@@ -806,6 +809,7 @@ def run_self_test() -> None:
         query_chromosome="target_ref",
         insert_chromosomes=("homolog_ref", "target_ref"),
         insert_origin_policy="consensus",
+        drop_shared_reads=False,
         merge_window_bp=10,
         mismatch_source="nm",
         on_missing_tag="skip",

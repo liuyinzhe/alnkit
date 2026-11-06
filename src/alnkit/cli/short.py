@@ -114,16 +114,24 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
     parser.add_argument(
         "--insert-origin-policy",
         action="store",
-        choices=("owned", "owned-strict", "lenient", "consensus", "legacy"),
+        choices=("owned", "consensus", "legacy"),
         default="owned",
         help=(
             "哪些 read 算这个位点的证据（不改坐标，只改支持数）："
             "owned=只留归属 query 的（默认）；"
-            "owned-strict=再去掉在其它插入上还有次要命中的共有 read；"
-            "lenient=owned + 保留归属不明确的（不投票，最宽松）；"
-            "consensus=owned + 用同断点投票推定不明确的 read 的归属；"
+            "consensus=owned + 用同断点投票推定“归属不明确”的 read；"
             "legacy=全部保留、不做归属判定（复现旧脚本用，位点会明显变多）。"
             "详见 docs/concepts/short-scan-output.md §7"
+        ),
+    )
+    parser.add_argument(
+        "--drop-shared-reads",
+        dest="drop_shared_reads",
+        action="store_true",
+        help=(
+            "额外剔除“归属 query、但在其它插入序列上还有次要/XA 命中”的共有 read"
+            "（原 --insert-origin-policy owned-strict）；可与 owned/consensus 组合，"
+            "对 legacy 无效"
         ),
     )
     parser.add_argument(
@@ -321,6 +329,7 @@ def run_scan(args: argparse.Namespace) -> int:
         query_chr=args.query_chr,
         insert_chrs=args.insert_chrs,
         insert_origin_policy=args.insert_origin_policy,
+        drop_shared_reads=args.drop_shared_reads,
         merge_window_bp=args.merge_window_bp,
         min_mapq=args.min_mapq,
         max_mismatch=args.max_mismatch,

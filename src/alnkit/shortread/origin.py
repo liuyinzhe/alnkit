@@ -67,6 +67,7 @@ def decide_read_usage(
     query_chromosome: str,
     insert_chromosomes: Sequence[str],
     policy: str,
+    drop_shared_reads: bool = False,
 ) -> Tuple[bool, str, Optional[AlignmentRecord], str]:
     """按配置决定一条 read 是否参与本次（针对 --query-chr 的）断点统计。
 
@@ -78,9 +79,9 @@ def decide_read_usage(
     输出示例:
         policy='owned'        : 归属 target_ref -> (True,  'kept_owned', target_ref 上的比对, 'owned_query')
         policy='owned'        : 归属 homolog_ref -> (False, 'drop_other_insert', None, 'owned_other')
-        policy='owned-strict' : 归属 target_ref 但另有同源命中
+        drop_shared_reads=True: 归属 target_ref 但另有同源命中
                                 -> (False, 'drop_shared_with_other_insert', None, 'owned_query')
-        policy='lenient'      : 归属不明确 -> (True,  'kept_ambiguous', None, 'ambiguous')
+        policy='consensus'    : 归属不明确 -> (False, 'drop_ambiguous_insert', ...)（调用方再按投票推定）
         policy='legacy'       : -> (True, 'kept_legacy', 归属比对或 None, 归属标签)
         （完全没有插入命中的 read 归属标签为 'no_insert_hit'）
 
@@ -110,15 +111,14 @@ def decide_read_usage(
     if policy == "legacy":
         return True, "kept_legacy", origin_record, origin_label
     if ambiguous:
-        if policy == "lenient":
-            return True, "kept_ambiguous", origin_record, origin_label
         return False, "drop_ambiguous_insert", None, origin_label
     if origin_chromosome is None:
         return False, "drop_no_insert_hit", None, origin_label
     if origin_chromosome != query_chromosome:
         return False, "drop_other_insert", None, origin_label
-    # 严格模式：即使归属 query，只要在其它插入序列上还有 secondary/XA 命中，也当作共有 read 剔除
-    if policy == "owned-strict" and homology_hit_chromosomes - {query_chromosome}:
+    # --drop-shared-reads：即使归属 query，只要在**其它**插入序列上还有 secondary/XA 命中，
+    # 也当作共有 read 剔除（query 自己的次要命中是正常形态，不算）
+    if drop_shared_reads and homology_hit_chromosomes - {query_chromosome}:
         return False, "drop_shared_with_other_insert", None, origin_label
     return True, "kept_owned", origin_record, origin_label
 
@@ -227,7 +227,7 @@ def discover_candidate_reads(
           实测（本仓库 BAM）逐记录闸门丢 7/30 个位点，逐 read 闸门 0 丢——那 7 个位点的
           共同形态是「基因组侧 `3S147M`/`23S127M` 等无 SA/XA 的 clip 比对 + mate 落在插入 contig 上」。
         - **不把“有 soft clip”当成候选条件**：证据的判定在 `decide_read_usage()`，
-          没有任何插入命中的 read 在 owned/lenient/consensus/owned-strict 下一律丢弃
+          没有任何插入命中的 read 在 owned/consensus 下一律丢弃（legacy 例外）
           （legacy 另外关掉闸门），所以“只有 clip、没有插入线索”的 read 永远不可能成为证据，
           加进来只多读、不会多出结果（实测：11 万条 12S138M 无关 read 会让候选从 1.1 万涨到 15.5 万，结果不变）。
         - 顺手统计 is_duplicate（0x400）与光学重复（dt/DT），供“BAM 是否做过 markdup”判断。
@@ -431,6 +431,7 @@ def select_read_evidences(
             config.query_chromosome,
             config.insert_chromosomes,
             config.insert_origin_policy,
+            config.drop_shared_reads,
         )
         candidate_insert_chromosomes = {
             hit.chromosome for hit in insert_hits if hit.chromosome in config.insert_chromosomes
