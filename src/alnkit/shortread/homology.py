@@ -320,14 +320,10 @@ def write_site_homology_table(
     from ..core import tables
 
     payload = [{"sample": sample_name, **row} for row in rows]
+    # 表里不带 # 注释（解读见 docs/concepts/short-scan-output.md §5.1），第一行就是表头
     return tables.write_tsv(
         output_path,
         "site_homology",
         payload,
-        comments=[
-            "同源位点诊断：位点是否落在“与插入序列同源的基因组区域”里。",
-            "region_sources: insert:<插入名> = 插入序列回比位点周围的参考窗口；bed:<名字> = 用户给的区域。",
-            "best_region_* 是重叠区域里一致率最高（BED 来源按长度）的那一段；坐标 1-based 闭区间。",
-        ],
         sort_key=lambda row: (str(row["chrom"]), int(row["insert_pos_1based"])),
     )

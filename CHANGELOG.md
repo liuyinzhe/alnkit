@@ -27,6 +27,18 @@
   仍与旧脚本逐字节一致（黄金回归只比这两张）；`Insert_Interference.result.xls` 的语义已改，
   不再与上游产物比较。
 
+### Added
+
+- 新增 [各命令的输出表](docs/concepts/output-tables.md)：命令 → 产物清单，以及**未注册**表
+  （长读长链路 15 张、`plot ribbon` 的 blocks/placements/regions、`seg table` 的 legacy 14 列）
+  的逐列含义与坐标基准。`docs/concepts/tables.md` 头部加了指向它的入口。
+
+### Changed
+
+- `short scan` 的 `sites.canonical.tsv` 与 `site_homology.tsv` **不再带表头前的 `#` 注释行**
+  （第一行就是表头，可直接 `pandas.read_csv`）；原来那几行说明搬进
+  [scan 输出表](docs/concepts/short-scan-output.md) §5 / §5.1。
+
 ### Changed（破坏性：命令改名）### Changed（破坏性：命令改名）
 
 - 两个二代出图命令从 `short` 移到 `plot`，与其他静图命令放在一起：

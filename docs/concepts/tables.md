@@ -10,6 +10,9 @@
 - 旧表（legacy `.xls` / 旧 TSV）列名保持不变，由 `--columns legacy` 复现；
 - 浮点固定 4 位小数；空值写 `-`。
 
+各命令**写哪些表**、以及未注册的旧脚本表头怎么读，见
+[各命令的输出表](output-tables.md)。
+
 
 ## `segments`
 

@@ -46,7 +46,8 @@ alnkit short scan --bam-dir ./bams --query-chr target_ref \
 `insert_boundary_0based` 三列并列，恒等式由测试守住）。
 
 逐列含义、以及**最容易读错的 `Insert_Interference`（"共享证据"≠"基因组同源"）**，
-见 [short scan 输出表](concepts/short-scan-output.md)。
+见 [short scan 输出表](concepts/short-scan-output.md)；其他命令的表格逐列解释见
+[各命令的输出表](concepts/output-tables.md)。
 
 ### 参数怎么选（推荐做法）
 

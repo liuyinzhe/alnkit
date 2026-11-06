@@ -29,6 +29,7 @@ nav:
   - 约定:
       - 坐标: concepts/coordinates.md
       - 表契约: concepts/tables.md
+      - 各命令的输出表: concepts/output-tables.md
       - short scan 输出表: concepts/short-scan-output.md
   - CLI 参考:
       - cli/index.md

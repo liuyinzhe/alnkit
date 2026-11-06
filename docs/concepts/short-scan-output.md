@@ -4,6 +4,8 @@
 （`Insert_Interference` 与 `site_homology`）。示例一律用占位名（`sampleA`、`chr1`、
 `insertA`/`insertB`），和你自己的产物对照时请换成实际名字。
 
+其他命令的表（长读长链路、绘图）逐列解释见[各命令的输出表](output-tables.md)。
+
 一句话版本：
 
 | 你想回答的问题 | 看哪张表 |
@@ -79,16 +81,41 @@ BAM ──过滤(read 级)：flag/mapQ/错配/soft-clip 段数/候选闸门 ─�
 
 ## 5. `<sample>.sites.canonical.tsv`（规范位点表，机器接口）
 
-列定义见[表契约](tables.md)的 `insert_sites`。与主表**按 `(chrom, insert_pos_1based)` 一一对应**
-（同样的位点、同样的合并结果），恒等式：
+列定义见[表契约](tables.md)的 `insert_sites`。与主表
+（`<sample>.Insert_Position.result.xls`）**按 `(chrom, insert_pos_1based)` 一一对应**——同样的位点、
+同样的合并结果。恒等式：
 
 ```
 insert_pos_1based - 1 == insert_pos_0based
-insert_boundary_0based == insert_pos_1based
+insert_boundary_0based == insert_pos_1based        # 边界值 = 左侧碱基的 1-based 坐标
 ```
+
+表里**不带 `#` 注释行**（0.7.0 起），第一行就是表头，可以直接 `pandas.read_csv(sep="\t")`。
 
 `nearest_other_insert` / `other_inserts` 来自干扰判定，但**明确把 query 自己排除在外**：
 “query 出现”只说明这条 read 也命中了本次的 query，不算竞争者（见 §6.3）。
+
+## 5.1 `<sample>.site_homology.tsv`（可选：位点是不是内源同源）
+
+只有给了 `--reference-fasta` 或 `--homology-bed` 才生成。列定义见[表契约](tables.md)的
+`site_homology`；这里说怎么读。表里同样**不带 `#` 注释行**。
+
+| 列 | 读法 |
+|---|---|
+| `is_homology_site` | `yes` = 该位点落在一条“与插入序列同源的参考区域”里（两侧各放宽 50 bp）；`no` = 没落在任何同源区域 |
+| `region_sources` | 命中来源，`;` 分隔：`insert:<插入名>` = 把**插入序列**回比该位点周围的参考窗口得到的区域；`bed:<文件名/名字>` = 你给的 BED 区域 |
+| `n_regions` | 命中的区域个数（多个来源重叠时会 >1） |
+| `best_region_*` | 重叠区域里“最可信”的那一段：`insert:` 来源按**一致率**取最高，BED 来源按**长度**取最长；坐标 1-based 闭区间 |
+| `best_region_identity` | 回比得到的一致率（0-1，按 `cs` 标签的真实差异算）；BED 来源没有一致率，填 `-` |
+| `best_region_query_coverage` | 插入序列被这段区域覆盖的比例（0-1）；cDNA 样插入隔着内含子时这个数会明显 <1；BED 来源填 `-` |
+
+判读要点：
+
+- `region_sources` 里出现 `insert:<query>` 是**正常且期望**的：说明这条外源序列在基因组里有内源拷贝，
+  而该位点正好落在拷贝上 → 这个位点多半是内源干扰，不是整合位点；
+- 反过来，真整合位点应该 `no`（插入序列在那附近比不中基因组）；
+- 这条判据与 §6 的干扰表**互相独立**：干扰表只比较“插入之间”，看不到“外源 ↔ 基因组同源”；
+  外源与内源同源时，**只有这张表能分开真假位点**。
 
 ## 6. `<sample>.Insert_Interference.result.xls`（干扰诊断，**最容易读错**）
 

@@ -303,14 +303,10 @@ def write_canonical_sites_table(
                 "other_inserts": ",".join(others) if others else "-",
             }
         )
+    # 表里不带 # 注释（解读见 docs/concepts/short-scan-output.md §5），第一行就是表头
     return tables.write_tsv(
         output_path,
         "insert_sites",
         rows,
-        comments=[
-            "二代位点规范表（机器接口）；与 <sample>.Insert_Position.result.xls 按 "
-            "(chrom, insert_pos_1based) 一一对应。",
-            "insert_pos_1based = 断点左侧碱基的 1-based 坐标；insert_boundary_0based = 断点边界。",
-        ],
         sort_key=lambda row: (row["chrom"], row["insert_pos_1based"]),
     )
