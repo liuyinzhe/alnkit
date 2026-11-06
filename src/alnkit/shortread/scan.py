@@ -86,7 +86,6 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
                       insert_chromosomes=('decoy_ref','homolog_ref','target_ref'), ...)
     校验失败时调用 raise UsageError()（退出码 2）。
     """
-    mismatch_source = settings.mismatch_source
 
     if not settings.query_chr:
         raise UsageError("必须指定 --query-chr（本次要出结果的外源插入序列名）")
@@ -142,7 +141,7 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
         insert_origin_policy=settings.insert_origin_policy,
         drop_shared_reads=settings.drop_shared_reads,
         merge_window_bp=settings.merge_window_bp,
-        mismatch_source=mismatch_source,
+        mismatch_source=settings.mismatch_source,
         on_missing_tag=settings.on_missing_tag,
         minimum_mapping_quality=settings.min_mapq,
         maximum_mismatch_count=settings.max_mismatch,
@@ -234,7 +233,7 @@ def process_single_bam(bam_path: Path, config: RuntimeConfig) -> Dict[str, int]:
     try:
         with pysam.AlignmentFile(str(bam_path), "rb", threads=config.bam_threads) as alignment_file:
             validate_reference_names(alignment_file, config, bam_path)
-            # 第 1 遍：只读标签，筛出可能相关的 read（--no-candidate-gate / legacy 则不筛）
+            # 第 1 遍：只读标签，筛出可能相关的 read（给了 --no-candidate-gate 则不筛）
             candidate_reads: Optional[Set[str]] = None
             if config.use_candidate_gate:
                 started_at = time.perf_counter()
@@ -266,7 +265,7 @@ def process_single_bam(bam_path: Path, config: RuntimeConfig) -> Dict[str, int]:
         read_collection, config, statistics
     )
 
-    # 输出 1：保留比对明细（legacy 策略下等价于历史"info_dic 过滤后的全部记录"）
+    # 输出 1：保留比对明细（参与统计的每条 read 的全部比对）
     reads_info_path = config.output_directory / f"{sample_name}.reads_info.out.xls"
     written_reads_info_rows = write_reads_info_table(reads_info_path, read_evidences)
 
@@ -325,7 +324,6 @@ def process_single_bam(bam_path: Path, config: RuntimeConfig) -> Dict[str, int]:
     )
 
     # 输出 4（可选）：同源位点诊断 —— 位点是否落在“与外源同源的基因组区域”里
-    written_homology_rows = 0
     if config.reference_fasta is not None or config.homology_bed:
         regions = list(load_bed_regions(config.homology_bed))
         if config.reference_fasta is not None:
@@ -349,16 +347,12 @@ def process_single_bam(bam_path: Path, config: RuntimeConfig) -> Dict[str, int]:
                 )
         if regions:
             hom_path = config.output_directory / f"{sample_name}.site_homology.tsv"
-            written_homology_rows = write_site_homology_table(
-                hom_path,
-                annotate_sites(sorted(evidence_by_breakpoint), regions),
-                sample_name,
-            )
+            # 只算一次：同一份行既写表也用来数位点
+            homology_rows = annotate_sites(sorted(evidence_by_breakpoint), regions)
+            write_site_homology_table(hom_path, homology_rows, sample_name)
             statistics["homology_regions"] = len(regions)
             statistics["homology_sites"] = sum(
-                1
-                for row in annotate_sites(sorted(evidence_by_breakpoint), regions)
-                if row["is_homology_site"] == "yes"
+                1 for row in homology_rows if row["is_homology_site"] == "yes"
             )
             logging.info(
                 "同源位点诊断: %d 段同源区域，%d 个位点落在其中 -> %s",
@@ -577,11 +571,9 @@ def run_self_test() -> None:
 
     # (5b) 归属策略（参数：过滤后的记录 + 插入命中 + 同源命中 + query + 列表 + 策略）
     #      返回值是 4 元组：(是否保留, 处置标签, 归属比对, 归属标签)
-    assert (
-        decide_read_usage([], [homolog_hit], set(), "target_ref", insert_list, "owned")[0] is False
-    )
+    assert decide_read_usage([homolog_hit], set(), "target_ref", insert_list)[0] is False
     keep_flag, reason, resolved_origin, origin_label = decide_read_usage(
-        [genome_record], [target_hit], set(), "target_ref", insert_list, "owned"
+        [target_hit], set(), "target_ref", insert_list
     )
     assert (keep_flag, reason, resolved_origin.chromosome, origin_label) == (
         True,
@@ -589,25 +581,17 @@ def run_self_test() -> None:
         "target_ref",
         "owned_query",
     )
-    # 归属其它插入片段 -> 归属标签 owned_other（legacy 策略下它会非 0，所以干扰表里也能计数）
-    assert (
-        decide_read_usage([], [homolog_hit], set(), "target_ref", insert_list, "owned")[3]
-        == "owned_other"
-    )
-    assert (
-        decide_read_usage([], [homolog_hit], set(), "target_ref", insert_list, "legacy")[3]
-        == "owned_other"
-    )
+    # 归属其它插入片段 -> 归属标签 owned_other（这类 read 会被丢弃，只留在统计里）
+    assert decide_read_usage([homolog_hit], set(), "target_ref", insert_list)[3] == "owned_other"
+    assert decide_read_usage([homolog_hit], set(), "target_ref", insert_list)[3] == "owned_other"
 
     # (5c) 两个插入片段得分并列 -> 无法区分：owned 直接丢，consensus 也只是“待投票”
     assert (
-        decide_read_usage([], [tied_hit, target_hit], set(), "target_ref", insert_list, "owned")[1]
+        decide_read_usage([tied_hit, target_hit], set(), "target_ref", insert_list)[1]
         == "drop_ambiguous_insert"
     )
     assert (
-        decide_read_usage(
-            [], [tied_hit, target_hit], set(), "target_ref", insert_list, "consensus"
-        )[1]
+        decide_read_usage([tied_hit, target_hit], set(), "target_ref", insert_list)[1]
         == "drop_ambiguous_insert"
     )
     # 实测数据里的真实情形：clip 落在三个插入片段共有的 31 bp 序列上 -> 三方并列
@@ -616,23 +600,22 @@ def run_self_test() -> None:
         for name in ("homolog_ref", "decoy_ref", "target_ref")
     ]
     assert (
-        decide_read_usage(
-            [], shared_hits, {"homolog_ref", "decoy_ref"}, "target_ref", insert_list, "owned"
-        )[1]
+        decide_read_usage(shared_hits, {"homolog_ref", "decoy_ref"}, "target_ref", insert_list)[1]
         == "drop_ambiguous_insert"
     )
     # 归属不明确的 read 不再有任何“无条件保留”的策略（原 lenient 已删除）
-    assert "lenient" not in ("owned", "consensus", "legacy")
 
     # (5f) 同源干扰源头判定（三种典型情况）与“共有 read”信号抽取
-    assert determine_interference_sources("owned_query", {"target_ref"}, {"homolog_ref"}) == {
-        "homolog_ref"
-    }
+    assert determine_interference_sources(
+        "owned_query", {"target_ref"}, {"homolog_ref"}, "target_ref"
+    ) == {"homolog_ref"}
     # 归属不明确：除 query 外的候选都算源头（query 自己永远不算）
     assert determine_interference_sources(
         "ambiguous", {"target_ref", "homolog_ref"}, set(), "target_ref"
     ) == {"homolog_ref"}
-    assert determine_interference_sources("owned_query", {"target_ref"}, set()) == set()
+    assert (
+        determine_interference_sources("owned_query", {"target_ref"}, set(), "target_ref") == set()
+    )
     assert collect_homology_hit_chromosomes(
         [
             make_hit("target_ref", 60, 99, 51, source="alignment"),
@@ -647,52 +630,33 @@ def run_self_test() -> None:
 
     # (5d) --drop-shared-reads：归属 query、但在其它序列上还有 secondary/XA 命中 -> 剔除
     strict_keep, strict_reason, _, _ = decide_read_usage(
-        [],
         [target_hit],
         {"target_ref", "homolog_ref"},
         "target_ref",
         insert_list,
-        "owned",
         drop_shared_reads=True,
     )
     assert (strict_keep, strict_reason) == (False, "drop_shared_with_other_insert")
     # 同一开关与 consensus 组合也生效（今天两个需求可同时表达）
+    # 同一开关与 consensus 组合也生效（策略差异在调用方，函数本身只看 drop_shared_reads）
     assert (
         decide_read_usage(
-            [],
             [target_hit],
             {"target_ref", "homolog_ref"},
             "target_ref",
             insert_list,
-            "consensus",
             drop_shared_reads=True,
         )[1]
         == "drop_shared_with_other_insert"
     )
     # 不开开关时保留（只做归属区分，不剔除共有 read）
-    assert (
-        decide_read_usage([], [target_hit], {"homolog_ref"}, "target_ref", insert_list, "owned")[0]
-        is True
-    )
+    assert decide_read_usage([target_hit], {"homolog_ref"}, "target_ref", insert_list)[0] is True
 
     # (5e) 插入侧比对被 MAPQ 过滤掉（只能来自 secondary/XA），仍能判定 read 来自 target_ref
     low_quality_hit = make_hit("target_ref", 0, 34, 116, source="secondary")
-    assert (
-        decide_read_usage(
-            [genome_record], [low_quality_hit], set(), "target_ref", insert_list, "owned"
-        )[1]
-        == "kept_owned"
-    )
+    assert decide_read_usage([low_quality_hit], set(), "target_ref", insert_list)[1] == "kept_owned"
     # 完全没有插入序列命中 -> 丢弃
-    assert (
-        decide_read_usage([genome_record], [], set(), "target_ref", insert_list, "owned")[1]
-        == "drop_no_insert_hit"
-    )
-    # legacy 策略已删除：不认识的值必须被拦在 CLI 层（这里只保证 owned/consensus 两条路存在）
-    assert {
-        decide_read_usage([], [], set(), "target_ref", insert_list, policy)[1]
-        for policy in ("owned", "consensus")
-    } == {"drop_no_insert_hit"}
+    assert decide_read_usage([], set(), "target_ref", insert_list)[1] == "drop_no_insert_hit"
 
     # (6) 重复 read：只认 markdup 的 0x400，按 read 聚合（任一条记录被标记即算重复）
     assert read_is_duplicate([right_clipped, target_record]) is False

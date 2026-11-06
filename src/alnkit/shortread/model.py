@@ -28,6 +28,7 @@ CIGAR_FULL_RE = re.compile(r"(?:\d+[MIDSHX=])+")
 # 三类证据的日志/统计键名，集中定义，避免散落的字符串
 STAT_KEYS = (
     "alignments_total",
+    "alignments_mapped",
     "alignments_with_sa",
     "alignments_with_xa",
     "supplementary_alignments",
@@ -171,10 +172,10 @@ class AlignmentBlock(NamedTuple):
 class AlignmentRecord(NamedTuple):
     """一条保留下来、要参与后续统计的比对（对应 reads_info 的一行）。
 
-    输入示例: 一条 pysam 比对（read_name='LH...:1152:49645:20099', read_pair='read2',
+    输入示例: 一条 pysam 比对（read_name='readA:1:2:3', read_pair='read2',
               cigarstring='47S67M1I35M', chromosome='chr2', mapping_quality=60）
     输出示例:
-        AlignmentRecord(read_name='LH...:1152:49645:20099', read_pair='read2',
+        AlignmentRecord(read_name='readA:1:2:3', read_pair='read2',
                         cigarstring='47S67M1I35M', is_supplementary=False, chromosome='chr2',
                         block_start=7000000, block_end=7000100, read_start=47, read_end=114,
                         block_length=67, strand='+', mapping_quality=60, mismatch_count=0,
@@ -204,10 +205,10 @@ class AlignmentRecord(NamedTuple):
 class ReadEvidence(NamedTuple):
     """一条 read（= 一个 read_name，可能含 read1/read2 多条比对）的汇总信息。
 
-    输入示例: read_name='LH...:1152:49645:20099'，两条比对分别落在 chr2 与 target_ref 上，
+    输入示例: read_name='readA:1:2:3'，两条比对分别落在 chr2 与 target_ref 上，
               另在 homolog_ref 上有 secondary 命中
     输出示例:
-        ReadEvidence(read_name='LH...:1152:49645:20099',
+        ReadEvidence(read_name='readA:1:2:3',
                      all_records=[chr2 上的比对, target_ref 上的比对],
                      evidence_records=[chr2 上的比对],
                      origin_record=target_ref 上的比对,

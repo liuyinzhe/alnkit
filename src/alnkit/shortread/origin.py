@@ -61,31 +61,29 @@ def determine_insert_origin(
 
 
 def decide_read_usage(
-    records: Sequence[AlignmentRecord],
     insert_hits: Sequence[InsertHit],
     homology_hit_chromosomes: Set[str],
     query_chromosome: str,
     insert_chromosomes: Sequence[str],
-    policy: str,
     drop_shared_reads: bool = False,
 ) -> Tuple[bool, str, Optional[AlignmentRecord], str]:
     """按配置决定一条 read 是否参与本次（针对 --query-chr 的）断点统计。
 
     输入示例:
-        records                 = 通过质量过滤的比对（用于后续断点统计）
         insert_hits             = 插入序列上的全部命中（含被质量过滤掉的、secondary、XA）
         homology_hit_chromosomes= {'homolog_ref'}   # 该 read 在其它序列上的 secondary/XA 命中
         query_chromosome        = 'target_ref'
     输出示例:
-        policy='owned'        : 归属 target_ref -> (True,  'kept_owned', target_ref 上的比对, 'owned_query')
-        policy='owned'        : 归属 homolog_ref -> (False, 'drop_other_insert', None, 'owned_other')
-        drop_shared_reads=True: 归属 target_ref 但另有同源命中
-                                -> (False, 'drop_shared_with_other_insert', None, 'owned_query')
-        policy='consensus'    : 归属不明确 -> (False, 'drop_ambiguous_insert', ...)（调用方再按投票推定）
+        归属 target_ref      -> (True,  'kept_owned', target_ref 上的比对, 'owned_query')
+        归属 homolog_ref      -> (False, 'drop_other_insert', None, 'owned_other')
+        归属不明确            -> (False, 'drop_ambiguous_insert', ...)（consensus 策略下调用方再按投票推定）
+        归属 target_ref 但另有其它插入的同源命中、且 drop_shared_reads=True
+                              -> (False, 'drop_shared_with_other_insert', None, 'owned_query')
         （完全没有插入命中的 read 归属标签为 'no_insert_hit'）
 
     返回: (是否保留, 处置标签, 归属插入序列上的比对记录或 None, 归属标签)
-          归属标签与过滤策略无关，供统计/干扰表使用。
+          归属标签供统计/干扰表使用；--insert-origin-policy 的差异只体现在调用方
+          （owned 丢弃归属不明的 read，consensus 会把它们交给同断点投票）。
     """
     origin_chromosome, ambiguous, _ = determine_insert_origin(insert_hits, insert_chromosomes)
     origin_record = None
@@ -232,10 +230,6 @@ def discover_candidate_reads(
         if alignment.is_unmapped or alignment.reference_name is None:
             continue
         statistics["pass1_alignments"] += 1
-        if alignment.is_duplicate:
-            statistics["duplicate_alignments"] += 1
-            if alignment.has_tag("dt") or alignment.has_tag("DT"):
-                statistics["optical_duplicate_alignments"] += 1
         read_name = alignment.query_name
         if alignment.reference_name in insert_names:
             candidate_reads.add(read_name)
@@ -258,13 +252,13 @@ def collect_read_records(
     """遍历 BAM，按 read 名收集“通过过滤的比对记录”、“归属候选”与“共有 read 信号”。
 
     输入示例:
-        BAM 中一条比对: query_name='LH...:2416:17423:10304', cigarstring='116S34M',
+        BAM 中一条比对: query_name='readA:1:2:3', cigarstring='116S34M',
                         reference_name='target_ref', mapping_quality=0, is_secondary=True
         config.minimum_mapping_quality = 20
     输出示例:
         BamReadCollection(
-            records_by_read_name={'LH...:1152:49645:20099': [chr2 上的比对]},
-            insert_hits_by_read_name={'LH...:2416:17423:10304':
+            records_by_read_name={'readA:1:2:3': [chr2 上的比对]},
+            insert_hits_by_read_name={'readA:1:2:3':
                 [InsertHit('target_ref', 0, 34, 0, 116, 'secondary', record)]})
         解读：mapq=0 且 secondary 的 target_ref 比对不能作为断点证据（不进第一个字段），
               但它是归属判定与“共有 read”信号的依据。
@@ -281,13 +275,14 @@ def collect_read_records(
         statistics["alignments_total"] += 1
         if alignment.is_unmapped or alignment.reference_name is None:
             continue
-        read_name = alignment.query_name
-        if candidate_reads is not None and read_name not in candidate_reads:
-            statistics["skipped_by_candidate_gate"] += 1
-            continue
 
-        # (0) 顺便统计比对特征，用于事后检查这个 BAM 的比对参数是否满足脚本要求
-        #     （SA / soft clip / 补充比对 / 次要比对 / hard clip，详见 warn_about_alignment_features）
+        # (0) 先统计“整个 BAM 的比对特征”与重复标记，**在候选闸门之前**——这些数
+        #     用来判断“这个 BAM 的比对参数/markdup 是否满足脚本要求”，与候选筛选无关；
+        #     放在闸门后面会让 --no-candidate-gate 下 dup 计数恒 0（误报“未做 markdup”）。
+        if alignment.is_duplicate:
+            statistics["duplicate_alignments"] += 1
+            if alignment.has_tag("dt") or alignment.has_tag("DT"):
+                statistics["optical_duplicate_alignments"] += 1
         if alignment.has_tag("SA"):
             statistics["alignments_with_sa"] += 1
         if alignment.has_tag("XA"):
@@ -298,6 +293,12 @@ def collect_read_records(
             statistics["secondary_alignments"] += 1
         if "H" in (alignment.cigarstring or ""):
             statistics["hard_clipped_alignments"] += 1
+        statistics["alignments_mapped"] = statistics.get("alignments_mapped", 0) + 1
+
+        read_name = alignment.query_name
+        if candidate_reads is not None and read_name not in candidate_reads:
+            statistics["skipped_by_candidate_gate"] += 1
+            continue
 
         # (1) 插入序列命中（归属判定与“共有 read”信号用，不受质量过滤影响）：
         #     落在插入序列上的比对（含 secondary）+ 该比对的 XA 备选命中
@@ -369,13 +370,13 @@ def select_read_evidences(
     """对每条 read 做归属判定，产出参与统计的 ReadEvidence 列表。
 
     输入示例:
-        records_by_read_name = {'LH...:1152:49645:20099': [chr2 记录, target_ref 记录],
-                                'LH...:2416:17423:10304': [target_ref 记录]}
+        records_by_read_name = {'readA:1:2:3': [chr2 记录, target_ref 记录],
+                                'readA:1:2:3': [target_ref 记录]}
         config = query_chromosome='target_ref', insert_origin_policy='owned'
     输出示例:
-        ([ReadEvidence(read_name='LH...:1152:49645:20099', origin_label='owned_query',
+        ([ReadEvidence(read_name='readA:1:2:3', origin_label='owned_query',
                        evidence_records=[chr2 记录], ...)],
-         [ReadEvidence(read_name='LH...:2416:17423:10304', ...)])   # 被 markdup 标记的重复 read
+         [ReadEvidence(read_name='readA:1:2:3', ...)])   # 被 markdup 标记的重复 read
 
     说明（单记录 read 的处理）：
         - 单条比对的 read 也算证据：插入侧比对常常因为 MAPQ 被过滤，只剩基因组侧那一条带 clip
@@ -398,12 +399,10 @@ def select_read_evidences(
         if homology_hit_chromosomes:
             statistics["reads_shared_with_other_insert"] += 1
         keep_read, reason, origin_record, origin_label = decide_read_usage(
-            records,
             insert_hits,
             homology_hit_chromosomes,
             config.query_chromosome,
             config.insert_chromosomes,
-            config.insert_origin_policy,
             config.drop_shared_reads,
         )
         candidate_insert_chromosomes = {

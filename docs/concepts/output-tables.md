@@ -13,18 +13,18 @@
 - 坐标列名带 `_0based` / `_1based` 后缀；旧脚本表头（`ref_start` / `Insert_Position` 等）沿用历史
   口径，**不要按名字猜基准**——§1 的“基准”一列写明了；
 - 浮点固定 4 位小数；空值写 `-`；多值用 `,` 或 `;` 分隔（表内注明）；
-- 行序由写入方显式排序（表内注明排序键），同一输入两次运行逐字节一致。
+- 行序由写入方显式排序（排序键见各表说明；注册表只规定列序），同一输入两次运行逐字节一致。
 
 ## 1. 总览
 
 | 命令 | 表格产物 | 列定义 / 基准 |
 |---|---|---|
 | `short scan` | `<sample>.Insert_Position.result.xls`<br>`<sample>.reads_info.out.xls`<br>`<sample>.Insert_Interference.result.xls`<br>`<sample>.sites.canonical.tsv`<br>`<sample>.site_homology.tsv`（可选） | 旧脚本表头 → [scan 输出表](short-scan-output.md) §3–§6<br>注册表 `insert_sites` / `site_homology` → [tables.md](tables.md) |
-| `plot insertion` | `<name>.clips.tsv`、`<name>.consensus.tsv` | 注册表 `insertion_clip_reads` / `insertion_clip_consensus` |
-| `plot coverage` | `<name>.region.tsv`、`<name>.bins.tsv`、`<name>.bases.tsv`（`--bases-table`） | 注册表 `coverage_region` / `coverage_bins` / `coverage_bases` |
-| `plot tracks` | `<name>.segments.tsv` | 注册表 `segments` |
-| `plot ribbon` | `<name>.blocks.tsv`、`<name>.placements.tsv`、`<name>.regions.tsv` | §4.1（前两张在文件里带 `#` 列说明） |
-| `seg table` | `<out>`（规范列，或 `--columns legacy` 历史 14 列） | 注册表 `segments` / §4.3 |
+| `plot insertion` | `<name>.clips.tsv`、`<name>.consensus.tsv` | 注册表 `insertion_clip_reads` / `insertion_clip_consensus`；**文件头带 `# sample=/window=/producer=` 溯源注释**，解析时跳过 `#` 行 |
+| `plot coverage` | `<name>.region.tsv`、`<name>.bins.tsv`，另加 `--bases-table <path>` 指定的逐碱基表（默认不写） | 注册表 `coverage_region` / `coverage_bins` / `coverage_bases`；同样带 `#` 溯源注释 |
+| `plot tracks` | `<name>.segments.tsv` | 片段图自己的 10 列表头（见 §4.2；**不是**注册表 `segments`，但能读注册表那份表） |
+| `plot ribbon` | `<name>.blocks.tsv`、`<name>.placements.tsv`、`<name>.regions.tsv` | §4.1（**后两张**在文件里带 `#` 列说明；`blocks.tsv` 没有） |
+| `seg table` | `<out>`（注册表 `segments` 22 列，或 `--columns legacy` 历史 14 列） | 注册表 `segments` / §4.2 |
 | `long classify` | `alignment_segments.tsv`、`read_classification.tsv`、`junction_events.tsv`、`junction_sites.tsv`、`locus_regions.tsv`、`classification_summary.tsv` + `related_reads.fastq` | §3.1 |
 | `long graph` | `overlap_edges.tsv`、`overlap_components.tsv` | §3.2 |
 | `long breakpoints` | `read_class_assignment.tsv`、`breakpoint_sites.tsv`、`breakpoint_classes.tsv`、`breakpoint_shared_reads.tsv`、`segment_ends.tsv`、`class_read_pools.tsv` + `classes/` | §3.3 |
@@ -101,7 +101,7 @@
 | `chrom` / `genome_side` | 参考名；基因组侧（`genome_left` = 基因组在边界左侧） |
 | `boundary_min` / `boundary_max` / `boundary_median` | 该位点内事件边界的最小/最大/中位数（**0-based**） |
 | `n_events` / `n_reads` | 事件数 / 支持 read 数 |
-| `exog_names` / `read_names` | 命中的外源名与支持 read 名（`,` / `;` 分隔） |
+| `exog_names` / `read_names` | 命中的外源名与支持 read 名（都是 `,` 分隔） |
 
 **`locus_regions.tsv`** — 位点再按“同染色体、边界相距 ≤ `--region-gap-bp`（默认 200 kb）”聚成区域
 
@@ -123,7 +123,9 @@
 | `non_target_reads` | `total_reads - target_reads`（这些 read 不加载比对段、不输出逐条记录） |
 | `target_fraction` | `target_reads / total_reads`（0-1） |
 
-`related_reads.fastq` 是上表那批 `junction` + `vector_region` read 的原始序列，供下游组装用。
+分类结果还会写三个 FASTQ（按 `read_category` 拆分，供下游按需取用）：
+`related_reads.fastq`（全部相关 reads）、`junction_reads.fastq`、`vector_region_reads.fastq`；
+另外 `regions/<R##>/junction_reads.fastq` 是按区域拆的接头 reads 子集。
 
 ### 3.2 `long graph`（2 张表）
 
@@ -131,7 +133,7 @@
 
 | 列 | 含义 |
 |---|---|
-| `read_a` / `read_b` | 参与 overlap 的两条 read（顺序固定为名字字典序，保证可复现） |
+| `read_a` / `read_b` | 参与 overlap 的两条 read：分别是 PAF 里的 query / target（同一对 read 的 a/b 取决于 PAF 里谁先出现）；**行序**按这对名字排序，保证可复现 |
 | `block_bp` | overlap 块长度（bp）；门槛 `--min-overlap` |
 | `identity` | 一致率（0-1）；门槛 `--min-identity` |
 | `strand` | 两条 read 的相对方向（`+`/`-`） |
@@ -156,8 +158,9 @@
 
 | 列 | 含义 |
 |---|---|
-| `read_name` / `chrom` / `strand` | read 名；参考名；该片段方向 |
+| `read_name` / `chrom` | read 名；参考名 |
 | `segment_start` / `segment_end` | 片段在参考上的区间（**0-based 半开**，旧表头） |
+| `strand` | 该片段方向 |
 | `end_side` | 这是片段的哪一端：`left` / `right` |
 | `end_coordinate` | 该末端的参考坐标（0-based） |
 | `genome_side` | 该末端“朝外”的基因组侧（`genome_left` = 基因组在左，即插入点在右） |
@@ -166,7 +169,7 @@
 | `junction_type` | `vector` = 基因组末端紧邻外源；`genome` = 紧邻另一段基因组；`none` = 没有紧邻段 |
 | `junction_id` | 该末端对应的断点编号（`S##` 为 vector 断点；`G##a`/`G##b` 为同一个 genome–genome 断点的两个末端） |
 | `gap_bp` | 末端与紧邻片段在 read 轴上的间隔（0 = 紧邻/重叠） |
-| `window_50bp` | 该末端 50 bp 锚点窗口的判定信息（`ok` = 窗口完整可用） |
+| `window_50bp` | 该末端 50 bp 锚点窗口的**区间串** `chrom:start-end`（1-based 闭区间），供 `long locate` 取序列；窗口不完整时该串仍会写出，需自己核对边界 |
 
 **`breakpoint_sites.tsv`** — 按断点聚合（`S##` / `G##a` / `G##b`）
 
@@ -194,13 +197,13 @@
 
 | 列 | 含义 |
 |---|---|
-| `class_id` | 类编号（= `classes/` 下的目录名） |
-| `region_id` / `region_label` | 所属区域 |
+| `region_id` | **类编号**（历史表头：列名是 `region_id`，装的值就是类号 = `classes/` 下的目录名） |
+| `region_label` | 可读标签，形如 `<类号>|<site_ids>` |
 | `chrom` / `start` / `end` | 类的参考范围（**0-based**） |
 | `n_sites` / `n_reads` | 类内断点数 / junction read 数 |
 | `genome_sides` / `site_ids` | 涉及的基因组侧 / 断点编号 |
 | `exog_names` / `junction_types` | 涉及的外源名 / 断点类型集合 |
-| `read_names` | 类内 junction reads（并集，`;` 分隔） |
+| `read_names` | 类内 junction reads（并集，`,` 分隔） |
 
 **`read_class_assignment.tsv`** — read → 类 / 断点的对照
 
@@ -220,14 +223,15 @@
 | `n_vector_with_overlap_support` | 其中能在 `overlap_edges.tsv` 里找到支持边的载体 read 数 |
 | `reads_fastq` | 该池写出的 FASTQ 路径 |
 
-`classes/<class_id>/` 下另有该类的 `reads.fastq`、`segments.tsv` 等中间文件。
+`classes/<class_id>/` 下另有该类的四份 FASTQ 子集：`reads.fastq`（全部）、`junction_reads.fastq`、`vector_reads.fastq`，以及断点表等中间文件。
 
 ### 3.4 `long assemble`（2 张表 + 序列 + 支撑度表）
 
 | 文件 | 列 |
 |---|---|
 | `assembly_stats.tsv` / `overlap_assembly_summary.tsv` | `class_id`、`n_contigs`、`assembly_bp`（该类的总组装碱基）、`longest_contig_bp`——两个文件列相同，前者是“按类”的当前结果，后者是历史脚本的汇总口径，**保留两份是为了逐字节对账** |
-| `<class>/overlap_extension/contigs.fasta` | 组装序列（非表格） |
+| `<class>/overlap_extension/contigs.fasta` | 该类的组装序列（非表格） |
+| `all_overlap_contigs.fasta` | 所有类的 contig 合并成一份（非表格，供下游一次性比对） |
 | `assembly_support.tsv` | **注册表** `assembly_support`：把类内 reads 用 minimap2 打回 contig 的回验证据（`covered_fraction` / `mean_depth` / `depth_cliffs` / `status` 等），列定义见 [tables.md](tables.md) |
 
 ### 3.5 `long locate`（4 张表 + 丝带图三张表）
@@ -286,8 +290,8 @@
 
 | 命令 | 文件 | 列 |
 |---|---|---|
-| `plot tracks` | `<name>.segments.tsv` | **注册表** `segments`（规范列，见 [tables.md](tables.md)） |
-| `seg table` | `<out>`（`--out` 指定） | 默认**注册表** `segments`；`--columns legacy` 时写历史 14 列：<br>`read_name, read_pair, cigarstring, is_supplementary, chrom, M_ref_pos_start, M_ref_pos_end, M_read_pos_start, M_read_pos_end, M_var_len, stand, mapping_quality, ref_aln_len, read_aln_len`（旧表头，无基准后缀；`M_*` 为证据 M 块在参考/read 轴上的区间） |
+| `plot tracks` | `<name>.segments.tsv` | 片段图自己的 10 列（旧表头）：`read_name, read_length, segment_type, target_name, target_start, target_end, read_start, read_end, strand, mapq`。坐标 **0-based 半开**。读取时容忍历史/注册表两种列名（`target_name` ↔ `chrom`、`target_start` ↔ `ref_start_0based` 等，见 `core.segments.ALIASES`），所以 `seg table` 的产物能直接喂给它 |
+| `seg table` | `<out>`（`--out` 指定） | 默认**注册表** `segments`（22 列，见 [tables.md](tables.md)）；`--columns legacy` 时写历史 14 列（顺序固定，黄金对账依赖）：`chrom, chrom_length, ref_pos_start, ref_pos_end, read_name, read_pos_start, read_pos_end, strand, mapping_quality, is_secondary, is_supplementary, ref_aln_len, read_aln_len, simplified_cigar`（旧表头，`ref_pos_*`/`read_pos_*` 均为 **0-based 半开**） |
 
 ## 5. 自查：表是不是被改坏了
 

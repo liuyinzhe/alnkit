@@ -55,32 +55,47 @@ from dataclasses import dataclass
 
 import pysam
 
-from ..core.errors import UsageError
+from ..core.errors import RunError, UsageError
 from ..core.fasta import read_fasta_records, write_fasta_records
 from ..core.paf import parse_paf
 from ..core.tables import read_legacy_tsv as read_tsv
 from ..core.tables import write_legacy_tsv as write_tsv
 from ..plot import ribbon
 
+#: 单次外部命令的超时（秒）：minimap2 卡住时宁可报错，也不要把整条流水线挂死
+EXTERNAL_TIMEOUT_SECONDS = 3600
+
 
 def run_checked(command, stdout_file=None, context="command"):
-    """运行外部命令；非 0 退出码直接抛错，避免空 PAF/缺图静默通过。
+    """运行外部命令；缺命令 / 超时 / 非 0 退出码都转成 AlnkitError（退出码 1 或 2）。
 
     输入示例: run_checked(["minimap2", "-cx", "sr", ...], paf_file, "minimap2 flank")
-    输出示例: 命令成功时返回 CompletedProcess；失败时抛 RuntimeError。
+    输出示例: 命令成功时返回 CompletedProcess；失败时抛 UsageError（找不到命令）或 RunError。
     说明：stdout 可以指向已打开的文件；stderr 捕获后只保留末尾几行，避免日志爆炸。
     """
-    completed = subprocess.run(
-        command,
-        stdout=stdout_file if stdout_file is not None else subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            stdout=stdout_file if stdout_file is not None else subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+            timeout=EXTERNAL_TIMEOUT_SECONDS,
+        )
+    except FileNotFoundError:
+        raise UsageError(
+            "找不到 {0}：把它装好并放进 PATH（或用 --skip-ribbon 跳过这一步）".format(command[0])
+        ) from None
+    except subprocess.TimeoutExpired:
+        raise RunError(
+            "{0} 超过 {1} 秒未结束，已中止（大基因组可调大窗口/减少类数）".format(
+                context, EXTERNAL_TIMEOUT_SECONDS
+            )
+        ) from None
     if completed.returncode != 0:
         stderr_tail = " | ".join((completed.stderr or "").strip().splitlines()[-5:])
-        raise RuntimeError(
-            "{0} failed with exit code {1}: {2}".format(
+        raise RunError(
+            "{0} 失败（退出码 {1}）：{2}".format(
                 context, completed.returncode, stderr_tail or "(no stderr)"
             )
         )
@@ -446,7 +461,7 @@ def run_ribbon_tool(paf_path, contig_name, class_id, output_dirs, title):
     )
     figure_path = os.path.join(output_dirs["figures"], figure_name + ".png")
     if not os.path.exists(figure_path):
-        raise RuntimeError("synteny_ribbon did not create {0}".format(figure_path))
+        raise RunError("丝带图没有生成：{0}（minimap2 或 matplotlib 失败？）".format(figure_path))
     return figure_path
 
 
@@ -606,7 +621,7 @@ def write_summary_markdown(summary_rows, output_path):
     输入示例: write_summary_markdown(summary_rows, "summary.md")
     输出示例: Markdown 文件（含每类 50 bp 锚点/外源位置与图链接）
     """
-    with open(output_path, "w") as markdown_file:
+    with open(output_path, "w", encoding="utf-8") as markdown_file:
         markdown_file.write("# 07 丝带图与位置汇总\n\n")
         markdown_file.write(
             "坐标说明：组装坐标为 contig 自身 0-based 半开；"

@@ -163,7 +163,9 @@ def run(settings: GraphSettings) -> dict[str, object]:
         "连通分量: {0}".format(len(components)),
         "最大分量 reads: {0}".format(len(components[0]) if components else 0),
     ]
-    with open(os.path.join(settings.outdir, "overlap_summary.txt"), "w") as output:
+    with open(
+        os.path.join(settings.outdir, "overlap_summary.txt"), "w", encoding="utf-8"
+    ) as output:
         output.write("\n".join(summary) + "\n")
     print("\n".join(summary))
 

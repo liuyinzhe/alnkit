@@ -22,7 +22,7 @@ alnkit plot tracks [全局选项] [--bam …] [--paf …] [--segments-tsv …] [
 | `--bam-mode` | 否 | `auto` | BAM 取数方式：auto（默认）/scan/subset（可选：`auto`, `scan`, `subset`） |
 | `--min-mapq` | 否 | `0` | 最小 MAPQ（默认 0） |
 | `--include-secondary` | 否 | 关 | 包含 secondary 比对 |
-| `--highlight-ref` | 否 | — | 要标注的参考断点，格式 chrom:pos；可重复 |
+| `--highlight-ref` | 否 | — | 要标注的参考断点，格式 chrom:pos（pos 为 0-based，与表的坐标列一致）；可重复 |
 | `--outdir` | 是 | — | 输出目录 |
 | `--name` | 否 | `read_tracks` | 输出文件名前缀 |
 | `--title` | 否 | `Read-axis alignment segments` | 图标题（英文，避免缺字体） |

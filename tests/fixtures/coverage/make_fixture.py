@@ -9,8 +9,8 @@
 
 产物：``reads.bam``（+ ``.bai``），布局见 ``READS``。
 
-``expected.bins.legacy.tsv`` 由**独立脚本**（并入前的 ``coverage-viz --dump``）
-对同一个 BAM 生成，是黄金对账的来源::
+``expected.bins.legacy.tsv`` 由**独立脚本**（并入前的 ``coverage-viz`` 0.2.0，不在本仓库内）
+对同一个 BAM 生成，是黄金对账的来源（重算需要那个仓库，命令::
 
     python -m coverage_viz tests/fixtures/coverage/reads.bam -r chr1:1-2000 --bins 8 \\
         --dump tests/fixtures/coverage/expected.bins.legacy.tsv \\

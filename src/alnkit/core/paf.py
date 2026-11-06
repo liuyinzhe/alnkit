@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import os
 
+from .errors import UsageError
+
 __all__ = ["PAF_MIN_FIELDS", "parse_paf"]
 
 PAF_MIN_FIELDS = 12
@@ -21,6 +23,7 @@ def parse_paf(path: str | os.PathLike[str]) -> list[dict[str, object]]:
     空行、``#`` 注释、列数不足、比对长度为 0 的行会被跳过。
     """
     blocks: list[dict[str, object]] = []
+    zero_length_rows = 0
     with open(path, encoding="utf-8") as handle:
         for line in handle:
             if not line.strip() or line.startswith("#"):
@@ -30,6 +33,7 @@ def parse_paf(path: str | os.PathLike[str]) -> list[dict[str, object]]:
                 continue
             aligned_length = int(fields[10])
             if aligned_length <= 0:
+                zero_length_rows += 1
                 continue
             matches = int(fields[9])
             blocks.append(
@@ -49,4 +53,10 @@ def parse_paf(path: str | os.PathLike[str]) -> list[dict[str, object]]:
                     "mapq": int(fields[11]),
                 }
             )
+    if not blocks and zero_length_rows:
+        # minimap2 不带 -c 时 PAF 第 10/11 列是 0：照这样跑下去只会得到“0 条边/0 个 contig”
+        raise UsageError(
+            f"{path} 里 {zero_length_rows} 行 PAF 的比对长度为 0（第 10 列）："
+            "请用 `minimap2 -c`（或 -cx <预设>）重新生成"
+        )
     return blocks

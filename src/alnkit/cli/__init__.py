@@ -1,6 +1,6 @@
 """命令行入口：``alnkit <command>``。
 
-6 个顶层命令 / 11 个叶子命令均已可用。
+6 个顶层命令 / 13 个叶子命令均已可用。
 """
 
 from __future__ import annotations

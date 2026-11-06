@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Sequence, Set
+from typing import Sequence, Set
 
 from .model import InsertHit
 
@@ -25,7 +25,7 @@ def determine_interference_sources(
     origin_label: str,
     candidate_insert_chromosomes: Set[str],
     homology_hit_chromosomes: Set[str],
-    query_chromosome: Optional[str] = None,
+    query_chromosome: str,
 ) -> Set[str]:
     """汇总一条 read 的“同源干扰源头”。
 
@@ -46,9 +46,8 @@ def determine_interference_sources(
     """
     homology = set(homology_hit_chromosomes)
     candidates = set(candidate_insert_chromosomes)
-    if query_chromosome:
-        homology.discard(query_chromosome)
-        candidates.discard(query_chromosome)
+    homology.discard(query_chromosome)
+    candidates.discard(query_chromosome)
     if homology:
         return homology
     if origin_label == "ambiguous":

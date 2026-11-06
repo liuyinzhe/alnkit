@@ -837,20 +837,6 @@ def build_region_rows(reference_name, reference_length, row_lengths, blocks, que
     return rows
 
 
-def merge_intervals(intervals):
-    """把 (起, 止) 区间合并成不重叠区间（用来算"覆盖了多少 bp"，重叠只算一次）。
-
-    输入示例: [(0, 10), (5, 20), (30, 40)]  -> 输出示例: [(0, 20), (30, 40)]
-    """
-    merged = []
-    for start, end in sorted(intervals):
-        if merged and start <= merged[-1][1]:
-            merged[-1][1] = max(merged[-1][1], end)
-        else:
-            merged.append([start, end])
-    return [(start, end) for start, end in merged]
-
-
 def build_placement_rows(
     reference_name, reference_length, row_lengths, blocks, query_order=None, full_tolerance_bp=10
 ):
@@ -927,7 +913,7 @@ def write_placement_table(
     输出示例: 表头前带 # 目标 / # 列说明 注释块；**一行一个比对位置**；返回数据行数
     """
     rows = build_placement_rows(reference_name, reference_length, row_lengths, blocks, query_order)
-    with open(path, "w") as table_file:
+    with open(path, "w", encoding="utf-8") as table_file:
         table_file.write(
             "# 目标：逐处列出「每一行（查询片段）在参考上的位置」——**一行一个比对位置**，\n"
         )
@@ -961,7 +947,7 @@ def write_region_table(
     输出示例: 表头前带 # 目标 / # 坐标系 / # 列说明 注释块，随后是表头与数据行；返回行数
     """
     rows = build_region_rows(reference_name, reference_length, row_lengths, blocks, query_order)
-    with open(path, "w") as table_file:
+    with open(path, "w", encoding="utf-8") as table_file:
         table_file.write("# 目标：输出同源比对区域坐标信息（以参考序列为坐标参考系）\n")
         table_file.write(
             "# 参考序列：{0}（{1:,} bp）\n".format(display_name or reference_name, reference_length)
@@ -1132,7 +1118,8 @@ def run(settings: RibbonSettings) -> dict[str, object]:
     if settings.paf:
         if settings.reference or settings.query:
             print("提示：--paf 模式下忽略 --reference/--query（片段名与长度都从 PAF 里读）")
-        if settings.query_preset or settings.preset == "auto":
+        # 显式给的任何预设（含默认 asm20 之外的）在 --paf 模式下都不会生效，一律提示
+        if settings.query_preset or settings.preset:
             print("提示：--paf 模式下 --preset/--query-preset 不生效（比对已由 PAF 决定）")
         reference_name, reference_length, row_lengths, blocks = collect_rows_from_paf_mode(settings)
         reference_record = reference_name

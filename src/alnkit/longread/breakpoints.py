@@ -499,8 +499,15 @@ def assign_region_ids(clusters, shared_counts, min_shared):
 ### 输出 ###
 
 
-def fill_segment_end_junction_ids(segment_end_rows, clusters):
-    """给 segment_ends 行填 junction_id（按 type/chrom/side/boundary 匹配 site）。"""
+def fill_segment_end_junction_ids(segment_end_rows, clusters, gap_bp=20):
+    """给 segment_ends 行填 junction_id（按 type/chrom/side/boundary 匹配 site）。
+
+    输入示例: fill_segment_end_junction_ids(rows, clusters, gap_bp=20)
+    输出示例: 行里的 junction_id 被填成最近的 site_id（超出 gap_bp 保持 "-"）
+
+    说明: gap_bp 必须与位点聚类用的 --site-gap 一致，否则两张表会自相矛盾
+          （断点存在、但末端找不到它）。
+    """
     for row in segment_end_rows:
         candidates = [
             cluster
@@ -508,7 +515,7 @@ def fill_segment_end_junction_ids(segment_end_rows, clusters):
             if cluster["junction_type"] == row["junction_type"]
             and cluster["chrom"] == row["chrom"]
             and cluster["genome_side"] == row["genome_side"]
-            and abs(cluster["boundary_median"] - row["end_coordinate"]) <= 20
+            and abs(cluster["boundary_median"] - row["end_coordinate"]) <= gap_bp
         ]
         if candidates:
             row["junction_id"] = min(
@@ -631,7 +638,7 @@ def run(settings: BreakpointSettings) -> dict[str, object]:
     for cluster in clusters:
         cluster["region_id"] = site_to_class[cluster["site_id"]]
 
-    fill_segment_end_junction_ids(segment_end_rows, clusters)
+    fill_segment_end_junction_ids(segment_end_rows, clusters, settings.site_gap)
 
     ### 4. 写断点表 / 类表 / read 类别归属 / segment ends ###
 
@@ -898,7 +905,9 @@ def run(settings: BreakpointSettings) -> dict[str, object]:
                 len(class_info["junction_read_names"]),
             )
         )
-    with open(os.path.join(settings.outdir, "graph_summary.txt"), "w") as summary_file:
+    with open(
+        os.path.join(settings.outdir, "graph_summary.txt"), "w", encoding="utf-8"
+    ) as summary_file:
         summary_file.write("\n".join(summary_lines) + "\n")
     print("\n".join(summary_lines))
 

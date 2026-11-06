@@ -539,7 +539,6 @@ def draw_multiple_breakpoints_figure(
     chrom: str,
     span_start: int,
     span_end: int,
-    breakpoints: list[int],
     output_path: str | Path,
     *,
     dpi: int = 150,
@@ -615,7 +614,7 @@ def render(
             clip_groups, chrom, span_start, span_end, breakpoints[0], output_path, **arguments
         )
     return draw_multiple_breakpoints_figure(
-        clip_groups, chrom, span_start, span_end, breakpoints, output_path, **arguments
+        clip_groups, chrom, span_start, span_end, output_path, **arguments
     )
 
 
@@ -638,7 +637,7 @@ class InsertionSettings:
     window_end: int
     breakpoints: tuple[int, ...]  # 0-based 断点边界
     out_dir: str = "."
-    name: str = "insertion_plot"
+    name: str = "insertion"
     dpi: int = 150
     show_consensus: bool = True
     show_formula: bool = True
@@ -650,7 +649,7 @@ def run(settings: InsertionSettings) -> dict[str, object]:
     输入示例: InsertionSettings(bam="reads.bam", chrom="chr1", window_start=99200,
                                 window_end=100800, breakpoints=(100000,))
     输出示例: {"png": "out/insertion_plot.png", "clips_tsv": "…", "consensus_tsv": "…",
-               "junctions": [100000], "n_reads": 40, "xlim": (99734, 100660)}
+               "junctions": [100000], "n_reads": 40, "xlim": (99136, 100864)}
 
     为什么要“写表再读表”：表是接口。图只允许看到表里的东西，读回来一次就能保证
     表本身足够画出这张图（少列、错列会在这里立刻报错，而不是画出一张空图）。

@@ -292,7 +292,7 @@ def test_multi_breakpoint_figure(tmp_path: Path, clip_reads) -> None:
     groups = insertion.build_groups(clip_reads, [MULTI_LEFT, MULTI_RIGHT])
     output = tmp_path / "multi.png"
     layout = insertion_plot.draw_multiple_breakpoints_figure(
-        groups, "chr1", 119_000, 121_000, [MULTI_LEFT, MULTI_RIGHT], output
+        groups, "chr1", 119_000, 121_000, output
     )
     assert output.exists() and output.stat().st_size > 20_000
     assert layout["junctions"] == [MULTI_LEFT, MULTI_RIGHT]

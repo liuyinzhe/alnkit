@@ -196,7 +196,8 @@ insert_boundary_0based == insert_pos_1based        # 边界值 = 左侧碱基的
 被当成“这个位点的证据”**，因此它直接改的是 `split_read_support` / `pair_split_read_support`
 （主表）与 `support_reads_*`（干扰表），注意它**不改**已保留 read 的坐标。
 
-判定顺序（`shortread/origin.py`）：先按“比对块长度 / 错配 / clip 长度”给每个插入序列打分，
+判定顺序（`shortread/origin.py`）：先给每个插入序列打分，键依次是 **MAPQ → 比对块长度 →
+错配数（少者优先）→ clip 长度**（所以 MAPQ=60 的短命中会压过 MAPQ=0 的长命中），
 得分唯一 → 归属该插入；并列 → `ambiguous`；一个插入都没命中 → `no_insert_hit`。
 
 | 策略 | 保留谁 | 丢掉谁 | 什么时候用 |

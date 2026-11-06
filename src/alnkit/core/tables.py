@@ -17,6 +17,8 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from types import TracebackType
 from typing import Any, Literal, TextIO
 
+from .errors import RunError
+
 __all__ = [
     "COLUMNS",
     "COLUMN_DOC",
@@ -228,7 +230,9 @@ COLUMN_DOC: dict[str, dict[str, str]] = {
         "chrom": "位点所在参考序列",
         "insert_pos_1based": "断点左侧碱基的 1-based 坐标（= Insert_Position 列）",
         "is_homology_site": "yes/no：是否落在一条同源区域里（两侧各放宽 50 bp）",
-        "n_regions": "命中的同源区域个数",
+        "n_regions": (
+            "命中的同源区域条数（同一段可能被 splice / asm20 两个预设各命中一次，所以可能 >1）"
+        ),
         "region_sources": "命中的来源：insert:<插入名> 或 bed:<名字>，多个用分号连接",
         "best_region_chrom": "最可信的同源区域所在参考序列（无命中写 -）",
         "best_region_start_1based": "最可信同源区域的起始（1-based，闭区间）",
@@ -415,10 +419,13 @@ class _AtomicWriter:
         import tempfile
 
         directory = os.path.dirname(os.path.abspath(self.target))
-        os.makedirs(directory, exist_ok=True)
-        descriptor, self.temporary = tempfile.mkstemp(
-            dir=directory, prefix=".alnkit-", suffix=".tmp"
-        )
+        try:
+            os.makedirs(directory, exist_ok=True)
+            descriptor, self.temporary = tempfile.mkstemp(
+                dir=directory, prefix=".alnkit-", suffix=".tmp"
+            )
+        except OSError as error:  # 只读目录 / 磁盘满：转成 RunError，别让 traceback 漏到 cli.main
+            raise RunError(f"写不了 {self.target}：{error}") from error
         self._handle = os.fdopen(descriptor, "w", encoding="utf-8", newline="")
         return self._handle
 
@@ -437,6 +444,8 @@ class _AtomicWriter:
                     os.chmod(self.temporary, _default_file_mode())
                 os.replace(self.temporary, self.target)
                 return False
+        except OSError as error:
+            raise RunError(f"写不了 {self.target}：{error}") from error
         finally:
             if os.path.exists(self.temporary):
                 os.unlink(self.temporary)

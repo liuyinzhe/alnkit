@@ -795,7 +795,6 @@ def run(settings: ClassifySettings) -> dict[str, object]:
                 "read_length": read_lengths[read_name],
                 "read_category": read_category,
                 "events": events,
-                "region_ids": [],
                 "n_exog_segments": len(exog_segments),
                 "exog_names": sorted({segment["chrom"] for segment in exog_segments}),
                 "exog_aln_bp": exog_aln_bp,
@@ -821,9 +820,6 @@ def run(settings: ClassifySettings) -> dict[str, object]:
         for event in site["events"]:
             event["site_id"] = site["site_id"]
             event["region_id"] = site["region_id"]
-
-    for record in read_records:
-        record["region_ids"] = sorted({event["region_id"] for event in record["events"]})
 
     ### 4. 输出 ###
 

@@ -12,7 +12,7 @@ import argparse
 from ..core import coords
 from ..core.errors import UsageError
 from ..shortread import insertion
-from ._common import GLOBAL_OPTIONS
+from ._common import GLOBAL_OPTIONS, require_existing_files
 
 
 def _require_plot_module(module_name: str):
@@ -96,7 +96,7 @@ def _add_tracks(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
         dest="highlight_ref",
         action="append",
         default=[],
-        help="要标注的参考断点，格式 chrom:pos；可重复",
+        help="要标注的参考断点，格式 chrom:pos（pos 为 0-based，与表的坐标列一致）；可重复",
     )
     parser.add_argument("--outdir", required=True, help="输出目录")
     parser.add_argument("--name", default="read_tracks", help="输出文件名前缀")
@@ -137,6 +137,12 @@ def _add_tracks(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
 
 
 def run_tracks(args: argparse.Namespace) -> int:
+    require_existing_files(
+        ("--bam", args.bam),
+        ("--paf", args.paf),
+        ("--segments-tsv", args.segments_tsv),
+        ("--reads-file", args.reads_file),
+    )
     tracks = _require_plot_module("tracks")
     settings = tracks.TrackSettings(
         outdir=args.outdir,
@@ -275,6 +281,9 @@ def _add_ribbon(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
 
 
 def run_ribbon(args: argparse.Namespace) -> int:
+    require_existing_files(
+        ("--paf", args.paf), ("--order-file", args.order_file), ("--query-file", args.query_file)
+    )
     ribbon = _require_plot_module("ribbon")
     settings = ribbon.RibbonSettings(
         outdir=args.outdir,

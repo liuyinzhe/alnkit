@@ -10,7 +10,7 @@ import os
 
 from ..core.errors import UsageError
 from ..longread import assemble, breakpoints, classify, graph, locate
-from ._common import GLOBAL_OPTIONS
+from ._common import GLOBAL_OPTIONS, require_existing_files
 
 
 def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -107,6 +107,9 @@ def _add_classify(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
 
 
 def run_classify(args: argparse.Namespace) -> int:
+    require_existing_files(
+        ("--bam", args.bam), ("--reads", args.reads), ("--merged-fai", args.merged_fai)
+    )
     settings = classify.ClassifySettings(
         bam=args.bam,
         reads=args.reads,
@@ -174,6 +177,13 @@ def _add_breakpoints(subparsers: argparse._SubParsersAction[argparse.ArgumentPar
 
 
 def run_breakpoints(args: argparse.Namespace) -> int:
+    require_existing_files(
+        ("--segments", args.segments),
+        ("--classification", args.classification),
+        ("--overlaps", args.overlaps),
+        ("--reads", args.reads),
+        ("--merged-fai", args.merged_fai),
+    )
     settings = breakpoints.BreakpointSettings(
         segments=args.segments,
         classification=args.classification,
@@ -313,6 +323,12 @@ def _add_locate(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
 
 
 def run_locate(args: argparse.Namespace) -> int:
+    require_existing_files(
+        ("--regions", args.regions),
+        ("--sites", args.sites),
+        ("--reference-fasta", args.reference_fasta),
+        *[("--exog", path) for path in args.exog or []],
+    )
     settings = locate.LocateSettings(
         regions=args.regions,
         sites=args.sites,
@@ -368,6 +384,7 @@ def _add_graph(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
 
 
 def run_graph(args: argparse.Namespace) -> int:
+    require_existing_files(("--paf", args.paf), ("--classification", args.classification))
     settings = graph.GraphSettings(
         paf=args.paf,
         classification=args.classification,

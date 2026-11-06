@@ -42,7 +42,9 @@ read 坐标永远是 **read 自身 5'→3' 正向**（反向链比对段已翻�
 ## 旧表怎么办
 
 legacy 产物（二代三张 `.xls`、两套旧段表）**列名与数值一律不改**，用于黄金对账与既有下游。
-新表用规范列名，两者可通过下表的别名对应：
+新表用规范列名，两者可通过下表的别名对应——**别名只在读表时生效**（`core/segments.py` 的
+`ALIASES`）；表里列出的“规范列名”是注册表里存在的名字，右列若没有对应注册表项，
+说明它只是**将来的目标命名**，当前没有命令产出：
 
 | 旧列名 | 规范列名 | 基准 |
 |---|---|---|
@@ -50,10 +52,10 @@ legacy 产物（二代三张 `.xls`、两套旧段表）**列名与数值一律�
 | `ref_end` / `ref_pos_end` / `target_end` / `segment_end` | `ref_end_0based` | 0-based 半开 |
 | `read_start` / `read_pos_start` / `M_read_pos_start` | `read_start_0based` | 0-based 半开，正向 read 轴 |
 | `read_end` / `read_pos_end` / `M_read_pos_end` | `read_end_0based` | 0-based 半开，正向 read 轴 |
-| `end_coordinate` / `adjacent_coordinate` | `end_boundary_0based` | 0-based 边界 |
-| `boundary_min/max/median` | `boundary_min_0based` / `_max_` / `_median_` | 0-based 边界 |
-| `window_50bp`（串） | `window_display_1based` + `window_start_0based` / `window_end_0based` | 串 1-based 闭；新列 0-based 半开 |
-| `M_var_len` | `aln_block_bp` | 长度 |
+| `end_coordinate` / `adjacent_coordinate` | （暂无；旧表按 0-based 边界） | 0-based 边界 |
+| `boundary_min/max/median` | （暂无；旧表按 0-based 边界） | 0-based 边界 |
+| `window_50bp`（串） | （暂无；旧表存 1-based 闭区间串） | 串 1-based 闭 |
+| `M_var_len` | （暂无；旧表按长度） | 长度 |
 | `Insert_Position` | `insert_pos_1based`（同值）+ `insert_pos_0based` + `insert_boundary_0based` | 见上节 |
 
 ## 两个容易踩的坑

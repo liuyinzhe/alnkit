@@ -53,12 +53,13 @@ def run(args: argparse.Namespace) -> int:
         if found is None:
             missing_optional.append(name)
 
+    probed: dict[str, object] = {}
+    for name in (*ALIGNERS, *REFERENCE_TOOLS):
+        probed[name] = find_tool(name)
     for name in ALIGNERS:
-        tool = find_tool(name)
-        rows.append((name, tool.describe(), "可选：比对（至少装一个）"))
+        rows.append((name, probed[name].describe(), "可选：比对（至少装一个）"))
     for name in REFERENCE_TOOLS:
-        tool = find_tool(name)
-        rows.append((name, tool.describe(), "可选：参考索引 / BAM 处理"))
+        rows.append((name, probed[name].describe(), "可选：参考索引 / BAM 处理"))
 
     width = max(len(name) for name, _, _ in rows)
     print(f"alnkit {__version__}  平台 {platform.platform()}")
@@ -66,8 +67,8 @@ def run(args: argparse.Namespace) -> int:
     for name, value, note in rows:
         print(f"{name:<{width}}  {value:<40}{note}")
 
-    aligners = [name for name in ALIGNERS if find_tool(name).available]
-    if missing_required:
+    aligners = [name for name in ALIGNERS if probed[name].available]
+    if missing_required:  # 注意：pysam 缺失时本命令在 import 阶段就会失败，这里只是兜底
         raise errors.RunError(
             "缺少必需依赖：" + ", ".join(missing_required) + "。安装：pip install alnkit"
         )

@@ -7,7 +7,7 @@
 两种证据来源，可单独或同时使用：
 
 * ``--reference-fasta``：**对每个候选位点做局部回比**——取位点两侧各 ``--homology-window-bp``
-  （默认 5 kb）的参考窗口，把插入序列比上去（``-x splice`` 兼顾 cDNA 样插入，``-x asm20``
+  （默认 50 kb）的参考窗口，把插入序列比上去（``-x splice`` 兼顾 cDNA 样插入，``-x asm20``
   兼顾与基因组连续的插入）。只比小窗口，所以内存是 MB 级；
 * ``--homology-bed``：用户直接给出已知的同源基因/区域（BED，0-based 半开）。
 
@@ -316,7 +316,14 @@ def annotate_sites(
 def write_site_homology_table(
     output_path: Path, rows: Sequence[Dict[str, object]], sample_name: str
 ) -> int:
-    """写出 <sample>.site_homology.tsv（新表 `site_homology` 的产物）。"""
+    """写出 <sample>.site_homology.tsv（新表 `site_homology` 的产物，无 # 注释行）。
+
+    输入示例:
+        rows = [{"chrom": "chr1", "insert_pos_1based": 2000000, "is_homology_site": "yes", ...}]
+    输出示例（列序见 COLUMNS["site_homology"]）:
+        sample  chrom  insert_pos_1based  is_homology_site  n_regions  region_sources  ...
+        sampleA chr1   2000000           yes               1          insert:insertA  ...
+    """
     from ..core import tables
 
     payload = [{"sample": sample_name, **row} for row in rows]

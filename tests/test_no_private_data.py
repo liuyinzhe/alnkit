@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -36,8 +37,8 @@ SKIP_DIRS = {
     ".venv",
 }
 
-#: 本机路径前缀（在文档里写死会让别人照抄失败，也泄漏目录结构）
-LOCAL_PATH_PREFIXES = ("/home/askr", "C:\\Users\\")
+#: 家目录路径的通用模式（不写死本机用户名：写死本身就是泄漏，而且换台机器就失效）
+LOCAL_PATH_PATTERN = re.compile(r"(?:^|[^\w])/(?:home|Users)/[A-Za-z0-9._-]+")
 
 
 def _private_names() -> set[str]:
@@ -89,7 +90,6 @@ def test_repository_has_no_local_absolute_paths() -> None:
     leaks = []
     for path in _iter_files():
         text = path.read_text(encoding="utf-8", errors="ignore")
-        for prefix in LOCAL_PATH_PREFIXES:
-            if prefix in text:
-                leaks.append(f"{path.relative_to(REPO)}: {prefix}")
+        for match in LOCAL_PATH_PATTERN.finditer(text):
+            leaks.append(f"{path.relative_to(REPO)}: {match.group(0).strip()}")
     assert not leaks, "发现本机绝对路径：\n" + "\n".join(leaks)

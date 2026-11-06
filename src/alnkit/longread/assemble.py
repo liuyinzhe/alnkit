@@ -48,22 +48,14 @@ from pathlib import Path
 
 import pysam
 
-from ..core.fasta import reverse_complement, write_fasta_records
+from ..core.errors import RunError
+from ..core.fasta import read_fastq_sequences, reverse_complement, write_fasta_records
 from ..core.logging import get_logger
 from ..core.paf import parse_paf
 from ..core.tables import write_legacy_tsv as write_tsv
 from . import support
 
 ### 读取输入 ###
-
-
-def read_fastq_sequences(fastq_path):
-    """读 fastq，返回 {read_name: 大写序列}。
-
-    输入示例: read_fastq_sequences("classes/C03/reads.fastq")
-    输出示例: {"m.../ccs": "ACGT...", ...}
-    """
-    return {record.name: record.sequence.upper() for record in pysam.FastxFile(fastq_path)}
 
 
 def load_best_blocks(paf_path, read_names, min_overlap_bp, min_identity):
@@ -347,8 +339,8 @@ def assemble_one_class(
             left = start - contig_start
             right = left + len(read_sequences[name])
             if left < 0 or right > len(contig_sequence):
-                raise RuntimeError(
-                    "placed read out of contig: {0} [{1}, {2}) not in [0, {3})".format(
+                raise RunError(
+                    "把 read 放回 contig 时越界：{0} [{1}, {2}) 不在 [0, {3})".format(
                         name, left, right, len(contig_sequence)
                     )
                 )

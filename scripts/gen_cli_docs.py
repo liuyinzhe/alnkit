@@ -76,7 +76,9 @@ def _argument_row(action: argparse.Action) -> str | None:
     if metavar and not isinstance(action, argparse._StoreTrueAction):  # noqa: SLF001
         names += f" {metavar}"
     required = "是" if action.required else "否"
-    help_text = (action.help or "").replace("|", "\\|").replace("\n", " ")
+    # argparse 的 help 是 %-模板：源码里写 %% 才能在 --help 里显示 %；
+    # 生成的文档要跟 --help 一致，所以这里把 %% 还原成单个 %
+    help_text = (action.help or "").replace("%%", "%").replace("|", "\\|").replace("\n", " ")
     if action.choices:
         help_text += "（可选：" + ", ".join(f"`{c}`" for c in action.choices) + "）"
     return f"| {names} | {required} | {_format_default(action)} | {help_text} |"

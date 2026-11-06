@@ -138,10 +138,13 @@ def test_parse_xa_entry_keeps_only_insert_chromosomes() -> None:
 
 
 def test_determine_interference_sources() -> None:
-    assert scan.determine_interference_sources("owned_query", {"target_ref"}, {"homolog_ref"}) == {
-        "homolog_ref"
-    }
-    assert scan.determine_interference_sources("owned_query", {"target_ref"}, set()) == set()
+    assert scan.determine_interference_sources(
+        "owned_query", {"target_ref"}, {"homolog_ref"}, "target_ref"
+    ) == {"homolog_ref"}
+    assert (
+        scan.determine_interference_sources("owned_query", {"target_ref"}, set(), "target_ref")
+        == set()
+    )
 
 
 def test_builtin_self_test_passes(capsys) -> None:
@@ -228,6 +231,22 @@ def test_golden_tables_byte_identical(
         assert (tmp_path / name).read_bytes() == (golden / name).read_bytes(), (
             f"{case}/{name} 与旧脚本产物不再一致"
         )
+
+    # 干扰表不再与上游逐字节比（语义已改），但不能完全没覆盖：结构必须仍然成立
+    interference_path = tmp_path / "sampleA.Insert_Interference.result.xls"
+    assert interference_path.exists(), "干扰表没有产出"
+    interference_lines = [
+        line for line in interference_path.read_text(encoding="utf-8").splitlines() if line
+    ]
+    assert len(interference_lines[0].split("\t")) == 15, "干扰表列数变了"
+    position_lines = [
+        line
+        for line in (tmp_path / "sampleA.Insert_Position.result.xls")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line
+    ]
+    assert len(interference_lines) == len(position_lines), "干扰表与主表行数不一致"
 
 
 @requires_data

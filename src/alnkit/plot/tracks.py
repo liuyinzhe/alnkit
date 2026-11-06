@@ -29,6 +29,7 @@ import matplotlib
 import pysam
 
 from ..core.errors import UsageError
+from ..core.segments import ALIASES
 
 matplotlib.use("Agg")  # 无 DISPLAY 环境也必须能出图
 import matplotlib.pyplot as plt  # noqa: E402  （backend 必须先设置）
@@ -238,12 +239,26 @@ def add_segment(reads, segment, read_length):
     record["segments"].append(segment)
 
 
+#: 片段表必需列（注册表规范名；历史表头由 core.segments.ALIASES 映射过来）
+_TRACK_COLUMNS = (
+    "read_name",
+    "read_length",
+    "chrom",
+    "ref_start_0based",
+    "ref_end_0based",
+    "read_start_0based",
+    "read_end_0based",
+    "strand",
+)
+
+
 def load_segments_tsv(path, exog_names):
     """读片段表；列见模块文档 / README。
 
     输入示例: load_segments_tsv("example_segments.tsv", {"exog_a"})
     输出示例: {"r1": {"read_length": 19000, "segments": [...]}}
-    说明：用 utf-8-sig 打开，Excel 导出的 BOM 不会污染列名。
+    说明：用 utf-8-sig 打开，Excel 导出的 BOM 不会污染列名；列名容忍历史写法，
+          所以 `alnkit seg table` 写出的规范表（chrom / ref_start_0based …）也能直接画。
     """
     reads = {}
     header = None
@@ -255,17 +270,17 @@ def load_segments_tsv(path, exog_names):
             if header is None:
                 header = fields
                 index = {name: i for i, name in enumerate(header)}
-                required = {
-                    "read_name",
-                    "read_length",
-                    "target_name",
-                    "target_start",
-                    "target_end",
-                    "read_start",
-                    "read_end",
-                    "strand",
-                }
-                missing = required - set(index)
+                # 历史表头（target_* / read_start）与注册表列名都能读，见 core.segments.ALIASES
+                resolved = {}
+                missing = []
+                for canonical in (*_TRACK_COLUMNS, "segment_role", "mapq"):
+                    for alias in ALIASES[canonical]:
+                        if alias in index:
+                            resolved[canonical] = index[alias]
+                            break
+                    else:
+                        if canonical in _TRACK_COLUMNS:
+                            missing.append(canonical)
                 if missing:
                     raise UsageError("片段表缺少列: {0}".format(", ".join(sorted(missing))))
                 continue
@@ -273,23 +288,23 @@ def load_segments_tsv(path, exog_names):
                 raise UsageError(
                     f"片段表第 {line_number} 行有 {len(fields)} 列，应为 {len(header)} 列"
                 )
-            row = dict(zip(header, fields))
+            row = {canonical: fields[position] for canonical, position in resolved.items()}
             read_name = row["read_name"]
             read_length = int(row["read_length"])
-            segment_type = row.get("segment_type", "")
+            segment_type = row.get("segment_role") or ""
             if segment_type not in ("genome", "exog"):
-                segment_type = infer_segment_type(row["target_name"], exog_names)
+                segment_type = infer_segment_type(row["chrom"], exog_names)
             strand = row["strand"]
             if strand not in ("+", "-"):
                 raise UsageError(f"片段表第 {line_number} 行 strand 只能是 + 或 -，收到: {strand}")
             segment = {
                 "read_name": read_name,
                 "segment_type": segment_type,
-                "target_name": row["target_name"],
-                "target_start": int(row["target_start"]),
-                "target_end": int(row["target_end"]),
-                "read_start": int(row["read_start"]),
-                "read_end": int(row["read_end"]),
+                "target_name": row["chrom"],
+                "target_start": int(row["ref_start_0based"]),
+                "target_end": int(row["ref_end_0based"]),
+                "read_start": int(row["read_start_0based"]),
+                "read_end": int(row["read_end_0based"]),
                 "strand": strand,
                 "mapq": int(row.get("mapq", 0) or 0),
             }
@@ -393,6 +408,10 @@ def load_bam_input(settings, exog_names, read_names):
     if mode == "auto":
         mode = "subset" if read_names and bam_has_index(settings.bam) else "scan"
     if mode == "subset":
+        if not read_names:  # 先分清“没给名单”和“没有 samtools”，否则报错会指错方向
+            raise UsageError(
+                "--bam-mode subset 需要 --read 或 --reads-file（subset 只取指定 read）"
+            )
         reads = load_segments_bam_subset(
             settings.bam, exog_names, read_names, settings.min_mapq, settings.include_secondary
         )

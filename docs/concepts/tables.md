@@ -65,7 +65,7 @@
 | 2 | `chrom` | — | 位点所在参考序列 |
 | 3 | `insert_pos_1based` | 1-based | 断点左侧碱基的 1-based 坐标（= Insert_Position 列） |
 | 4 | `is_homology_site` | — | yes/no：是否落在一条同源区域里（两侧各放宽 50 bp） |
-| 5 | `n_regions` | — | 命中的同源区域个数 |
+| 5 | `n_regions` | — | 命中的同源区域条数（同一段可能被 splice / asm20 两个预设各命中一次，所以可能 >1） |
 | 6 | `region_sources` | — | 命中的来源：insert:<插入名> 或 bed:<名字>，多个用分号连接 |
 | 7 | `best_region_chrom` | — | 最可信的同源区域所在参考序列（无命中写 -） |
 | 8 | `best_region_start_1based` | 1-based | 最可信同源区域的起始（1-based，闭区间） |

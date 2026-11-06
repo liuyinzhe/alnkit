@@ -700,8 +700,8 @@ def report_duplicate_flags(statistics: Dict[str, int], bam_path: Path, require_f
         WARNING <bam> 里没有任何 FLAG 0x400（未做 markdup）：dup 两列将为 0。
                 建议先 samtools markdup
 
-    说明: 只统计第 1 遍扫到的全部比对（已关闭候选闸门时 = 全文件），用于判断“这个 BAM 有没有
-          被 markdup 处理过”；它不影响 SR/PESR，只决定 dup 两列有没有意义。
+    说明: 统计的是**全文件**的比对（不随候选闸门变化），用于判断“这个 BAM 有没有被 markdup
+          处理过”；它不影响 SR/PESR，只决定 dup 两列有没有意义。
     """
     duplicate_alignments = statistics["duplicate_alignments"]
     if duplicate_alignments == 0:
@@ -713,7 +713,7 @@ def report_duplicate_flags(statistics: Dict[str, int], bam_path: Path, require_f
             raise ConfigurationError(message % bam_path)
         logging.warning(message, bam_path)
         return
-    examined = statistics["pass1_alignments"] or statistics["alignments_total"]
+    examined = statistics["alignments_mapped"] or statistics["alignments_total"]
     logging.info(
         "重复标记: %d / %d 条比对（%.1f%%），其中光学重复 %d 条",
         duplicate_alignments,

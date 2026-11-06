@@ -5,78 +5,53 @@
 
 ## [Unreleased]
 
-### Removed（破坏性：归属策略 5 → 2，干扰口径只剩一种）
-
-- `--insert-origin-policy` 只保留 **`owned`（默认）/ `consensus`**：
-  - `owned-strict` → 改开关 **`--drop-shared-reads`**（剔除“归属 query、但在其它插入上还有
-    次要/XA 命中”的共有 read）。好处是可**与 `consensus` 组合**，旧的枚举值做不到。
-  - `lenient` 删：把“归属不明确”的 read 无条件当证据，方向与这类工具相反（抬高假位点）。
-    要利用这批 read 改用 `consensus`（同断点投票）。
-  - `legacy` 删：它不做归属判定、全部保留，会让位点 11 → 25、真位点 SR 125 → 87（实测），
-    唯一用途是与旧脚本整表对账——需要那个口径请装 `alnkit==0.6.0`。
-- **`--legacy-profile` 删**（它 = legacy 坐标 + legacy 归属 + MD 错配，其中归属那层已不存在）。
-  `--legacy-coordinates` 保留：它只影响“用哪个 M 块定断点”，仍可用于坐标层面的对照。
-- **`--interference-scope` 删**：干扰源头**恒排除 query**（即原来的 `other`）。0.6.0 的默认
-  `all` 会把“断点 read 在插入面板上有次要命中”这条正常形态记成干扰，导致单外源面板下真位点
-  与内源同源位点都被标 `True`、`interference_source_support_reads` 里出现 query 自己的名字。
-- 连带：`reads_kept_ambiguous` / `drop_single_alignment` / `drop_plain_pair` 三个统计键删除
-  （只有已移除的路径才会产生）；干扰表的 `support_reads_owned_other` /
-  `support_reads_no_insert_hit` 自本版起恒为 0（列保留以维持表格式）。
-- 旧命令写这些参数/取值会由 argparse 直接报错（退出码 2），不会静默改行为。
-- **对账影响（重要）**：`Insert_Position.result.xls` 与 `reads_info.out.xls` 在相同输入/参数下
-  仍与旧脚本逐字节一致（黄金回归只比这两张）；`Insert_Interference.result.xls` 的语义已改，
-  不再与上游产物比较。
-
 ### Added
 
-- 新增 [各命令的输出表](docs/concepts/output-tables.md)：命令 → 产物清单，以及**未注册**表
-  （长读长链路 15 张、`plot ribbon` 的 blocks/placements/regions、`seg table` 的 legacy 14 列）
-  的逐列含义与坐标基准。`docs/concepts/tables.md` 头部加了指向它的入口。
+- **`plot insertion`**（新命令，两张新表 `insertion_clip_reads` / `insertion_clip_consensus`）：
+  外源插入位点示意图。按“给了几个断点 + 每个断点有几侧 soft clip”自动选画法（单侧 /
+  同断点双侧 / 多断点），并算 soft clip 一致性序列。（0.6.0 里叫 `short insertion-plot`，
+  本版移到 `plot` 下。）
+- **`plot coverage`**（新命令，三张新表 `coverage_region` / `coverage_bins` / `coverage_bases`）：
+  区间覆盖广度与平均深度，可选 BED 基因轨道。指标口径与 `samtools coverage` 一致
+  （`M`/`=`/`X` 计深，`D`/`N` 不算覆盖，平均深度的分母是区间长度）。
+  （0.6.0 里叫 `short coverage`。）两个命令都是**表是接口**：先写注册表，再把表读回来渲染。
+- 新表 5 张（均已进 `docs/concepts/tables.md`）+ 合成 fixture 与跨实现黄金对账
+  （`tests/fixtures/{insertion,coverage}/`，编造的小坐标；黄金由并入前的独立脚本产出）。
+- 新文档：[各命令的输出表](docs/concepts/output-tables.md)（命令 → 产物清单，以及长读长链路
+  20 张、ribbon 的 blocks/placements/regions、`seg table` legacy 14 列的逐列含义与基准）、
+  [scan 输出表](docs/concepts/short-scan-output.md)（5 个产物的读法，含干扰表与同源表的坑）。
 
 ### Changed
 
+- **破坏性：两个二代出图命令从 `short` 移到 `plot`** —— `short insertion-plot` → `plot insertion`、
+  `short coverage` → `plot coverage`（无兼容别名）；默认 `--name` 改为 `insertion`。
+  命令说明里标注适用数据：`plot tracks` / `plot ribbon` 面向三代长读长，`plot insertion` /
+  `plot coverage` 面向二代短读长比对。
+- **破坏性：`--insert-origin-policy` 只剩 `owned`（默认）/ `consensus`**。`owned-strict` 改为开关
+  `--drop-shared-reads`（可与 `consensus` 组合，旧的枚举值做不到）；`lenient` 删除（把归属不明的
+  read 无条件当证据，方向与工具目标相反）。
+- **破坏性：干扰源头恒排除 query**（`--interference-scope` 整个删除，只保留原来的 `other` 逻辑）。
+  0.6.0 的默认 `all` 会把“断点 read 在插入面板上有次要命中”这条正常形态记成干扰，导致单外源
+  面板下真位点与内源同源位点都被标 `True`、源头里出现 query 自己的名字。实测：主表逐行不变，
+  干扰表 11 行里 5 行变化。连带 `support_reads_owned_other` / `ambiguous` / `no_insert_hit`
+  三列恒为 0（列保留以维持表格式）。
 - `short scan` 的 `sites.canonical.tsv` 与 `site_homology.tsv` **不再带表头前的 `#` 注释行**
-  （第一行就是表头，可直接 `pandas.read_csv`）；原来那几行说明搬进
-  [scan 输出表](docs/concepts/short-scan-output.md) §5 / §5.1。
+  （第一行就是表头，可直接 `pandas.read_csv`），原来那几行说明搬进 scan 输出表文档 §5 / §5.1。
+- `plot tracks --segments-tsv` 现在也接受注册表 `segments` 的列名（历史表头照旧），
+  所以 `seg table` 的产物可以直接画。
+- 外源与目标缺失时的报错收口：各子命令的输入文件缺失改为一行提示（退出码 2），
+  `long locate` 的 minimap2 缺失/失败/超时不漏 traceback；写表失败（只读目录、磁盘满）转 `RunError`。
+- 复用 `--merge-window-bp` 时锚点式聚类的实测口径写进帮助与文档（推荐 10–20；取 3 会拆散同一
+  连接点，调到几十–几百 bp 会把同一座位两侧的两个连接点并掉）。
 
-### Changed（破坏性：命令改名）### Changed（破坏性：命令改名）
+### Removed
 
-- 两个二代出图命令从 `short` 移到 `plot`，与其他静图命令放在一起：
-  `alnkit short insertion-plot` → **`alnkit plot insertion`**，
-  `alnkit short coverage` → **`alnkit plot coverage`**（0.6.0 刚发布，无兼容别名）。
-  输出文件与参数名不变，默认 `--name` 改为 `insertion`。
-- 命令说明里标注适用数据：`plot tracks` / `plot ribbon` **最初为三代长读长设计**
-  （一条 read 上多个比对片段、contig vs 参考）；`plot insertion` / `plot coverage`
-  面向**二代短读长比对**（soft clip 断点证据、覆盖广度/深度）。
-
-
-
-### Added
-
-- **`short insertion-plot`**（新命令，两张新表）：外源插入位点示意图。按“几个断点 +
-  几侧 soft clip”自动选画法（单侧 / 同断点双侧 / 多断点），并算 soft clip 一致性序列。
-  并自独立脚本 `insertion_schematic.py`，并入时**出图改成从 TSV 出**：先写
-  `insertion_clip_reads`（逐 read 的 clip 证据）与 `insertion_clip_consensus`
-  （逐列投票结果），再由表渲染 PNG。
-  坐标口径按 `core/coords.py` 统一：`--breakpoint` 与表里的 `breakpoint_1based` 都是
-  “断点左侧碱基的 1-based 坐标”（旧脚本标签是边界 + 1，图里数字因此少 1，位置不变）。
-- **`short coverage`**（新命令，三张新表）：区间覆盖广度与平均深度，可选 BED 基因轨道。
-  并自独立包 `coverage_viz`，同样改成从表出图：`coverage_region`（一行汇总）、
-  `coverage_bins`（逐 bin）、`coverage_bases`（`--bases-table` 才写）。指标口径与
-  `samtools coverage` 一致（`M`/`=`/`X` 计深，`D`/`N` 不算覆盖，平均深度的分母是区间长度）。
-- 新表（5 张，均已进 `docs/concepts/tables.md`）：`insertion_clip_reads`、
-  `insertion_clip_consensus`、`coverage_region`、`coverage_bins`、`coverage_bases`。
-- 合成 fixture 与黄金对账：`tests/fixtures/insertion/`（chr1 200 kb）与
-  `tests/fixtures/coverage/`（chr1 2.2 kb）由各自的 `make_fixture.py` 生成，坐标全部是编造的
-  小坐标（< 1 Mb），无真实数据；黄金 TSV 由**并入前的独立脚本**对同一份 BAM 产出，
-  回归时逐列比对（共 84 个新用例）。
-
-### Changed
-
-- `short coverage` 的 `--region` 现在必填（只有 `--list` 不需要）：旧工具在 BAM 只有一条
-  参考序列时会自动统计整条，显式写 `--region <contig>` 即可，行为更可预测。
-- `short insertion-plot` 的 `--breakpoint` / `--region` 一律 **1-based**；表里的
-  `breakpoint_1based` 与旧脚本 `sites.tsv` 的同名列差 1（口径见上）。
+- `--interference-scope`、`--legacy-profile`、`--insert-origin-policy legacy`（以及只为它们存在的
+  代码路径：`legacy` 的两条 read 丢弃规则、`drop_single_alignment` / `drop_plain_pair` /
+  `reads_kept_ambiguous` 三个统计键）。
+- **对账影响**：`Insert_Position.result.xls` 与 `reads_info.out.xls` 仍与旧脚本逐字节一致
+  （黄金回归只比这两张 + canonical）；`Insert_Interference.result.xls` 语义已改，不再与上游产物比较。
+  要复跑 0.6.0 的整表口径请装 `alnkit==0.6.0`。
 
 ## [0.5.0] - 2026-11-03
 

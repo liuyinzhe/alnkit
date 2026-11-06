@@ -33,3 +33,4 @@ BAM/PAF 的插入证据工具箱：断点提取 + 独立绘图。
 - [快速开始](quickstart.md)
 - [坐标约定](concepts/coordinates.md)
 - [表契约](concepts/tables.md)
+- [各命令的输出表](concepts/output-tables.md)

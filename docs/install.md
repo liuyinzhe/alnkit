@@ -10,9 +10,8 @@ pip install "alnkit[plot]"    # + 绘图（matplotlib）
 要求 Python >= 3.10。
 
 - **必需**：`pysam`（读 BAM/FASTA；自带 samtools 能力，但 0.3.0 起包内不再做排序/建索引）；
-- **长读长链路必需**：`minimap2`（`long classify` 的 overlap、`long locate` 的锚点比对、
-  `plot ribbon` 的内部比对、`long assemble` 默认的 `assembly_support.tsv` 都要它；
-  目前没有纯 Python 等价替代）；
+- **长读长链路必需**：`minimap2`（`long locate` 的锚点比对、`long assemble` 的支撑度报告
+  `assembly_support.tsv`、`plot ribbon` 的内部比对都调它；目前没有纯 Python 等价替代）；
 - **可选**：`matplotlib`（`alnkit[plot]`，只有绘图子命令需要）。
 - 不要装 `mappy` 也能用：它只是 minimap2 的 Python 绑定，只返回比对命中，不产出 BAM/PAF，
   无法替代本包对 `minimap2` 命令行输出的依赖。
@@ -22,7 +21,7 @@ pip install "alnkit[plot]"    # + 绘图（matplotlib）
 ```bash
 git clone git@github.com:liuyinzhe/alnkit.git
 cd alnkit
-pip install -e ".[dev,docs]"
+pip install -e ".[dev,docs,plot]"
 python -m pytest
 ```
 

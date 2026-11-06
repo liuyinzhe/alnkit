@@ -75,12 +75,12 @@ def write_reads_info_table(output_path: Path, read_evidences: Sequence[ReadEvide
     """写出 <sample>.reads_info.out.xls（保留比对的明细）。
 
     输入示例:
-        read_evidences = [ReadEvidence(read_name='LH...:1350:9163:17577',
+        read_evidences = [ReadEvidence(read_name='readA:1:2:3',
                                        all_records=[record(read_pair='read1', chromosome='chr1',
                                                            block_start=6000050, block_end=6000000, ...)])]
     输出示例（TAB 分隔，表头为历史保留的 11 列写法）:
         read_name\tread_pair\tcigarstring\tis_supplementary\tchrom\tM_ref_pos_start\t...
-        LH...:1350:9163:17577\tread1\t68M82S\tFalse\tchr1\t6000050\t6000000\t0\t68\t68\t-\t60
+        readA:1:2:3\tread1\t68M82S\tFalse\tchr1\t6000050\t6000000\t0\t68\t68\t-\t60
 
     返回: 写出的数据行数
     """
@@ -122,11 +122,11 @@ def write_insert_position_table(
 
     输入示例:
         evidence_by_breakpoint = {('chr1', 6000000): BreakpointEvidence(
-            split_read_names={'LH.../read1'}, pair_split_read_names=set(), ...)}
-        duplicates_by_breakpoint = {('chr1', 6000000): {'LH...:1350:9163:17577'}}
+            split_read_names={'readA/read1'}, pair_split_read_names=set(), ...)}
+        duplicates_by_breakpoint = {('chr1', 6000000): {'readA:1:2:3'}}
     输出示例（TAB 分隔）:
         Chromosome\tInsert_Position\tsplit_read_support\tpair_split_read_support\tdup_read_count\t...
-        chr1\t6000000\t1\t0\t1\tLH.../read1\t\tLH...:1350:9163:17577
+        chr1\t6000000\t1\t0\t1\treadA/read1\t\treadA:1:2:3
 
     返回: 写出的数据行数
     """
@@ -174,8 +174,9 @@ def write_insert_interference_table(
         support_reads_total  support_reads_owned_query  support_reads_owned_other
         support_reads_consensus_assigned  support_reads_ambiguous  support_reads_no_insert_hit
         ambiguous_read_names
-        chr2  7000000  2  7000000;7000000  target_ref  True  2  target_ref:2;homolog_ref:2
-        3  1  0  0  2  0  readB;readC
+        chr2  7000000  2  7000000;7000000  target_ref  True  1  homolog_ref:2
+        3  3  0  0  0  0  -
+        （query 自己永远不算源头，见 interference.determine_interference_sources）
 
     说明:
         - merged_position_count / merged_positions：该行由哪几个原始位点合并而来
@@ -184,8 +185,9 @@ def write_insert_interference_table(
         - interference_source_count：干扰源头个数
         - interference_source_support_reads：每个源头有多少条支持 read，格式 源头:条数;源头:条数
           （按条数降序、同数按名字排序，保证输出可复现）
-        - 各支持 read 计数列与过滤策略无关；legacy 策略下 owned_other / no_insert_hit 会非 0，
-          consensus 策略下 consensus_assigned 会非 0
+        - owned_other / ambiguous / no_insert_hit 三列自 0.7.0 起恒为 0（这三类 read 在过滤阶段
+          就被丢弃，不会进到支持 read 里）；consensus 策略下 consensus_assigned 会非 0。
+          列保留只是为了表格式不变（与旧脚本的列序一致）
 
     返回: 写出的数据行数
     """
@@ -265,6 +267,12 @@ def write_canonical_sites_table(
     query_insert: str,
 ) -> int:
     """写出 <sample>.sites.canonical.tsv —— 二代位点的**机器接口**（新增，不替代 legacy 三表）。
+
+    输入示例:
+        evidence_by_breakpoint = {("chr1", 6000000): BreakpointEvidence(...)}
+    输出示例（列序见 COLUMNS["insert_sites"]，无 # 注释行）:
+        chrom  insert_pos_1based  insert_pos_0based  insert_boundary_0based  n_sr  ...
+        chr1   6000000           5999999           6000000                 3     ...
 
     历史表里 ``Insert_Position`` 是"断点左侧碱基的 1-based 坐标"，但数值上又恰好等于该断点的
     0-based 边界，光看数字分不出来。这里把三种基准一次写清，恒等式由测试守住：

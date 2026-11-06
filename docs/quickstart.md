@@ -53,7 +53,7 @@ alnkit short scan --bam-dir ./bams --query-chr target_ref \
 
 | 参数 | 建议 | 为什么 |
 |---|---|---|
-| `--merge-window-bp` | **保持小值（10–50）** | 它只该吸收 **clip 端点抖动（几个 bp）**。放大到几百 bp 会把同一座位两侧的两个连接点（例如 2,000,000 与 2,000,230，相距 230 bp、clip 方向相反）并成一行，丢掉"这是一个双连接点座位"的结构信息 |
+| `--merge-window-bp` | **10–20**（实测抖动可达 ~20 bp，细则见[输出表文档](concepts/short-scan-output.md) §9） | 它只该吸收 **clip 端点抖动（几个 bp）**。放大到几百 bp 会把同一座位两侧的两个连接点（例如 2,000,000 与 2,000,230，相距 230 bp、clip 方向相反）并成一行，丢掉"这是一个双连接点座位"的结构信息 |
 | `--min-sr-support` | 测序深度够时用 **2** | 降噪应该靠"支持数"，不是靠合并窗口。SR=1 的位点多为旁系同源/比对噪声 |
 | `--min-clip-length` | **一般保持 0** | 它会把真位点的支持 read 一起削掉（同一批 read 的 clip 可能较短），不适合降噪 |
 | `--reference-fasta` 或 `--homology-bed` | 有同源外源时**务必给** | 外源与基因组内源序列同源时（如 insertA vs 参考里的内源同源片段，98.8%），内源位点的 SR/PESR 同样很高，只能靠 `site_homology.tsv` 区分 |
@@ -98,7 +98,7 @@ alnkit plot coverage --bam reads.sorted.bam --region chr1:1-20000 --bins 400 \
 ```bash
 alnkit long classify  --bam reads.bam --reads reads.fastq --merged-fai merged.fa.fai \
     --exog insertA --exog insertB --outdir 03_classify
-minimap2 -x ava-pb -c -t 8 merged.fa merged.fa > 04_overlap/overlaps.paf   # all-vs-all
+minimap2 -x ava-pb -c -t 8 merged.fa related.fastq related.fastq > 04_overlap/overlaps.paf   # read-vs-read
 alnkit long graph     --paf 04_overlap/overlaps.paf \
     --classification 03_classify/read_classification.tsv --outdir 04_overlap
 alnkit long breakpoints --segments 03_classify/alignment_segments.tsv \

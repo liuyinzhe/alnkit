@@ -13,7 +13,7 @@ from ..core import tables
 from ..core.bam_segments import load_alignment_segments, load_fai_lengths
 from ..core.errors import UsageError
 from ..core.segments import Segment, segment_rows
-from ._common import GLOBAL_OPTIONS
+from ._common import GLOBAL_OPTIONS, require_existing_files
 
 #: 历史 14 列表：对外列名 -> Segment 字段（顺序不可动，黄金对账依赖它）
 LEGACY_COLUMNS: tuple[tuple[str, str], ...] = (
@@ -99,6 +99,7 @@ def write_legacy_table(segments: list[Segment], path: str) -> int:
 
 
 def run_table(args: argparse.Namespace) -> int:
+    require_existing_files(("--bam", args.bam), ("--read-file", args.read_file))
     chrom_lengths = load_fai_lengths(args.fai) if args.fai else None
     selected = None
     if args.read_file:
