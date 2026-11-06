@@ -689,8 +689,10 @@ def run_self_test() -> None:
         == "drop_no_insert_hit"
     )
     # legacy 策略已删除：不认识的值必须被拦在 CLI 层（这里只保证 owned/consensus 两条路存在）
-    assert {decide_read_usage([], [], set(), "target_ref", insert_list, policy)[1]
-            for policy in ("owned", "consensus")} == {"drop_no_insert_hit"}
+    assert {
+        decide_read_usage([], [], set(), "target_ref", insert_list, policy)[1]
+        for policy in ("owned", "consensus")
+    } == {"drop_no_insert_hit"}
 
     # (6) 重复 read：只认 markdup 的 0x400，按 read 聚合（任一条记录被标记即算重复）
     assert read_is_duplicate([right_clipped, target_record]) is False
