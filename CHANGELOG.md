@@ -3,7 +3,7 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 SemVer。
 条目按功能 ID（`A*` 三代 / `B*` 二代 / `C*` 绘图 / `D*` 公共层）分组，ID 定义见规划文档。
 
-## [Unreleased]
+## [0.7.0] - 2026-11-07
 
 ### Added
 
@@ -52,6 +52,37 @@
 - **对账影响**：`Insert_Position.result.xls` 与 `reads_info.out.xls` 仍与旧脚本逐字节一致
   （黄金回归只比这两张 + canonical）；`Insert_Interference.result.xls` 语义已改，不再与上游产物比较。
   要复跑 0.6.0 的整表口径请装 `alnkit==0.6.0`。
+
+## [0.6.0] - 2026-11-05
+
+> 本版新增的两个命令在 0.7.0 里从 `short` 移到 `plot`，见 [0.7.0](#070---2026-11-07)。
+
+### Added
+
+- **`short insertion-plot`**（新命令，两张新表）：外源插入位点示意图。按“几个断点 +
+  几侧 soft clip”自动选画法（单侧 / 同断点双侧 / 多断点），并算 soft clip 一致性序列。
+  并自独立脚本 `insertion_schematic.py`，并入时**出图改成从 TSV 出**：先写
+  `insertion_clip_reads`（逐 read 的 clip 证据）与 `insertion_clip_consensus`
+  （逐列投票结果），再由表渲染 PNG。
+  坐标口径按 `core/coords.py` 统一：`--breakpoint` 与表里的 `breakpoint_1based` 都是
+  “断点左侧碱基的 1-based 坐标”（旧脚本标签是边界 + 1，图里数字因此少 1，位置不变）。
+- **`short coverage`**（新命令，三张新表）：区间覆盖广度与平均深度，可选 BED 基因轨道。
+  并自独立包 `coverage_viz`，同样改成从表出图：`coverage_region`（一行汇总）、
+  `coverage_bins`（逐 bin）、`coverage_bases`（`--bases-table` 才写）。指标口径与
+  `samtools coverage` 一致（`M`/`=`/`X` 计深，`D`/`N` 不算覆盖，平均深度的分母是区间长度）。
+- 新表（5 张，均已进 `docs/concepts/tables.md`）：`insertion_clip_reads`、
+  `insertion_clip_consensus`、`coverage_region`、`coverage_bins`、`coverage_bases`。
+- 合成 fixture 与黄金对账：`tests/fixtures/insertion/`（chr1 200 kb）与
+  `tests/fixtures/coverage/`（chr1 2.2 kb）由各自的 `make_fixture.py` 生成，坐标全部是编造的
+  小坐标（< 1 Mb），无真实数据；黄金 TSV 由**并入前的独立脚本**对同一份 BAM 产出，
+  回归时逐列比对（共 84 个新用例）。
+
+### Changed
+
+- `short coverage` 的 `--region` 现在必填（只有 `--list` 不需要）：旧工具在 BAM 只有一条
+  参考序列时会自动统计整条，显式写 `--region <contig>` 即可，行为更可预测。
+- `short insertion-plot` 的 `--breakpoint` / `--region` 一律 **1-based**；表里的
+  `breakpoint_1based` 与旧脚本 `sites.tsv` 的同名列差 1（口径见上）。
 
 ## [0.5.0] - 2026-11-03
 
@@ -231,7 +262,8 @@
 - 文档骨架：`docs/index.md`、`docs/install.md`、`docs/quickstart.md`、`docs/concepts/coordinates.md`、
   `docs/concepts/tables.md`（由 `core.tables` 生成）。
 
-[Unreleased]: https://github.com/liuyinzhe/alnkit/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/liuyinzhe/alnkit/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/liuyinzhe/alnkit/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/liuyinzhe/alnkit/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/liuyinzhe/alnkit/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/liuyinzhe/alnkit/compare/v0.3.0...v0.4.0
