@@ -198,6 +198,45 @@ insert_boundary_0based == insert_pos_1based
 |---|---|---|
 | `--drop-shared-reads` | 在 `owned`/`consensus` 之上，再剔除“归属 query、但在**其它**插入上还有次要/XA 命中”的共有 read | 外源之间高度相似（共享接头/载体）时，避免共有 read 把特异位点撑起来；对 `legacy` 无效 |
 
+### 7.1 推荐怎么选（按数据形态，不按个人偏好）
+
+**三步走**，不要一上来就换策略：
+
+```bash
+# 第 1 步：先用默认策略跑一遍，只看日志里这一行（统计会只列非 0 的键）
+alnkit short scan --bam sampleA.bam --query-chr insertA \
+    --insert-chrs insertA,insertB --merge-window-bp 10 --out-dir out_owned
+#   -> INFO 统计: {'reads_kept': ..., 'drop_other_insert': ..., 'drop_ambiguous_insert': ..., ...}
+```
+
+- `drop_ambiguous_insert` 很大（几十上百）→ 有一批 read 在**多个插入之间**分不清归属 → 第 2 步试 `consensus`；
+- `drop_other_insert` 很大而 `drop_ambiguous_insert` ≈ 0 → 这是**正常的**（外源面板里该位点的 read 属于别条外源），不要动策略；
+- 两个都小、位点支持数也够 → **就用 `owned`**，收工。
+
+**场景 → 推荐**：
+
+| 你的情形 | 推荐 | 为什么 / 注意 |
+|---|---|---|
+| 单外源；外源与基因组内源序列同源（cDNA 拷贝、含内源片段） | **`owned`** + `--reference-fasta`（或 `--homology-bed`） | 这类干扰**不在插入之间**，任何策略都解决不了；靠 `site_homology.tsv` 的 `is_homology_site` 判。策略保持默认即可 |
+| 多外源，各外源序列**互不同源** | **`owned`** | 实测这种数据上 `owned`/`consensus` 结果逐字节相同，换策略没有收益 |
+| 多外源，且存在**归属不明**的 read（日志 `drop_ambiguous_insert` 大） | **`consensus`** | 用同断点投票把“模糊但上下文明确”的 read 救回来；投票依据是 `--merge-window-bp` 内的邻居，所以窗口别设 0 |
+| 多外源，且**共享接头/载体/骨架**，担心共有 read 撑起假位点 | `owned` 或 `consensus` + **`--drop-shared-reads`** | 只剔“归属 query 但另在**其它**插入上有次要/XA 命中”的 read；单外源面板下它是 no-op |
+| 位点支持数太少（个位数）且 `drop_ambiguous_insert ≈ 0` | **先别换策略** | 先降门槛（`--min-mapq`、`--max-mismatch`）或查 `reads_info.out.xls`；换 `legacy` 只会把证据摊到更多位点上，SR 反而更小 |
+| 要和旧脚本产物逐字节对账 / 复跑历史结论 | **`legacy`**（或 `--legacy-profile` 一次带齐历史开关） | `legacy` 会多出大量噪声位点（实测 11 → 25）、真位点 SR 明显下降（125 → 87），**不要拿它做正式分析** |
+
+**四条不推荐的用法**：
+
+1. 用 `legacy` 跑正式分析（位点数虚高、真位点支持数被稀释）；
+2. 用 `--drop-shared-reads` 解决“同源位点”——它只看插入之间，管不了外源 ↔ 基因组；
+3. 把 `consensus` 当“更宽松的 owned”用在单外源面板上（没有 ambiguous read 时它等于 `owned`）；
+4. `--merge-window-bp 0` 时直接换 `consensus`：投票只在**完全同位**的邻居之间发生，
+   实际几乎救不回任何 read（投票窗口就是 `--merge-window-bp`，推荐 10）。
+
+**判读时永远看这两张表，不要只看支持数**：
+
+- `site_homology.tsv` → 这个位点是不是内源同源（要 `--reference-fasta`/`--homology-bed`）；
+- `Insert_Interference.result.xls` → 证据是否与插入面板共享（§6，注意它不是同源判定）。
+
 > 0.7.0 起策略从 5 个减到 3 个：原来的 `owned-strict` 变成 `--drop-shared-reads`（可与
 > `consensus` 组合，旧的枚举值做不到这一点），`lenient`（无条件保留归属不明的 read）已删除
 > —— 它把“不知道属于谁”的 read 当成证据，正是这类工具最该避免的方向。旧命令仍写这两个值
