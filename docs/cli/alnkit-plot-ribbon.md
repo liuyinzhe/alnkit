@@ -1,7 +1,7 @@
 # `alnkit plot ribbon`
 
 方式 1：给 --reference + --query，内部跑 minimap2；方式 2：给 --paf（现成比对），直接画图。
-设计初衷是**长读长（三代）组装结果 vs 参考**（contig 落在参考的哪些段、哪些是外源）；短读长的插入证据用 `plot insertion`、覆盖均匀性用 `plot coverage`。
+设计初衷是长读长（三代）组装结果 vs 参考（contig 落在参考的哪些段、哪些是外源）；短读长的插入证据用 `plot insertion`、覆盖均匀性用 `plot coverage`。
 
 ## 用法
 

@@ -1,7 +1,7 @@
 # `alnkit plot tracks`
 
 一条 read 一行，横轴为 read 自身坐标；每个比对片段画成一个块。输入三选一：--bam / --paf / --segments-tsv。
-设计初衷是**长读长（三代）比对**：一条 read 上有多个比对片段（外源 + 基因组 / contig 拼接）。二代 PE 也能画，但短读长的断点证据与覆盖度请看 `plot insertion` / `plot coverage`。
+设计初衷是长读长（三代）比对：一条 read 上有多个比对片段（外源 + 基因组 / contig 拼接）。二代 PE 也能画，但短读长的断点证据与覆盖度请看 `plot insertion` / `plot coverage`。
 
 ## 用法
 

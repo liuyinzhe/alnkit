@@ -1,6 +1,6 @@
 # `alnkit plot insertion`
 
-适用于**短读长（二代 / PE）比对**：从 CIGAR 首尾的 soft clip 取断点证据，按“给了几个断点 + 每个断点有几侧 clip”自动选画法。长读长（三代）的比对片段请用 `plot tracks` / `plot ribbon`。出图只读 TSV：先写 clips/consensus 两张表，再由表渲染。
+适用于短读长（二代 / PE）比对：从 CIGAR 首尾的 soft clip 取断点证据，按“给了几个断点 + 每个断点有几侧 clip”自动选画法。长读长（三代）的比对片段请用 `plot tracks` / `plot ribbon`。出图只读 TSV：先写 clips/consensus 两张表，再由表渲染。
 
 ## 用法
 

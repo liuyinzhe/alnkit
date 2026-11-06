@@ -35,10 +35,7 @@ def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
     plot = subparsers.add_parser(
         "plot",
         help="绘图（丝带图 / read 轨道图 / 插入位点示意图 / 覆盖度）",
-        description=(
-            "静态图输出，不依赖任何上游步骤产物。ribbon / tracks 最初为三代长读长设计，"
-            "insertion / coverage 面向二代短读长比对。"
-        ),
+        description="静态图输出：PNG（tracks 另有 SVG/PDF）；不依赖任何上游步骤产物。",
     )
     plot_subparsers = plot.add_subparsers(dest="plot_command", metavar="<subcommand>")
     plot_subparsers.required = True
@@ -53,11 +50,11 @@ def _add_tracks(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
         "tracks",
         parents=[GLOBAL_OPTIONS],
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        help="单 read 的比对片段轨道图（最初为三代长读长设计）",
+        help="long read 的比对片段轨道图",
         description=(
             "一条 read 一行，横轴为 read 自身坐标；每个比对片段画成一个块。"
             "输入三选一：--bam / --paf / --segments-tsv。\n"
-            "设计初衷是**长读长（三代）比对**：一条 read 上有多个比对片段（外源 + 基因组 / "
+            "设计初衷是长读长（三代）比对：一条 read 上有多个比对片段（外源 + 基因组 / "
             "contig 拼接）。二代 PE 也能画，但短读长的断点证据与覆盖度请看 "
             "`plot insertion` / `plot coverage`。"
         ),
@@ -179,11 +176,11 @@ def _add_ribbon(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
         "ribbon",
         parents=[GLOBAL_OPTIONS],
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        help="共线性丝带图（参考 vs 多个查询片段；最初为三代长读长设计）",
+        help="共线性丝带图（参考 vs 多个查询片段）",
         description=(
             "方式 1：给 --reference + --query，内部跑 minimap2；"
             "方式 2：给 --paf（现成比对），直接画图。\n"
-            "设计初衷是**长读长（三代）组装结果 vs 参考**（contig 落在参考的哪些段、哪些是外源）；"
+            "设计初衷是长读长（三代）组装结果 vs 参考（contig 落在参考的哪些段、哪些是外源）；"
             "短读长的插入证据用 `plot insertion`、覆盖均匀性用 `plot coverage`。"
         ),
         epilog=(
@@ -317,9 +314,9 @@ def _add_insertion(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
         "insertion",
         parents=[GLOBAL_OPTIONS],
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        help="短读长（二代）比对的插入位点示意图（单侧 / 同断点双侧 / 多断点）",
+        help="short reads 比对的插入位点示意图（单侧 / 同断点双侧 / 多断点）",
         description=(
-            "适用于**短读长（二代 / PE）比对**：从 CIGAR 首尾的 soft clip 取断点证据，"
+            "适用于短读长（二代 / PE）比对：从 CIGAR 首尾的 soft clip 取断点证据，"
             "按“给了几个断点 + 每个断点有几侧 clip”自动选画法。长读长（三代）的比对片段请用 "
             "`plot tracks` / `plot ribbon`。出图只读 TSV：先写 clips/consensus 两张表，再由表渲染。"
         ),
@@ -406,10 +403,10 @@ def _add_coverage(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
         "coverage",
         parents=[GLOBAL_OPTIONS],
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        help="短读长（二代）BAM 的区间覆盖广度与深度（PNG + 两张表）",
+        help="BAM 的区间覆盖广度与深度（PNG + 两张表）",
         description=(
             "按区间统计覆盖度：逐碱基深度 -> 分箱 -> 上图广度 / 下图深度（可选 BED 基因轨道）。"
-            "设计上是给**短读长（二代 / PE）数据**看的：覆盖度均匀性、插入片段两侧的断层，"
+            "设计上是给短读长（二代 / PE）数据看的：覆盖度均匀性、插入片段两侧的断层，"
             "长读长数据也能跑但通常用 `plot ribbon` 看结构。出图只读 TSV：先写 region/bins "
             "两张表，再由表渲染。"
         ),
