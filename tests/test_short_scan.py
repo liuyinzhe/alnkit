@@ -497,6 +497,7 @@ def test_min_sr_support_must_be_positive() -> None:
             )
         )
 
+
 def test_removed_origin_policies_are_rejected() -> None:
     """0.7.0 删掉的 owned-strict / lenient 必须由 argparse 拒绝（不许静默改行为）。"""
     for policy in ("owned-strict", "lenient"):
@@ -508,10 +509,20 @@ def test_removed_origin_policies_are_rejected() -> None:
 def test_drop_shared_reads_flag_is_accepted_with_owned_and_consensus(tmp_path) -> None:
     """新开关与 owned/consensus 都能组合（旧的枚举值做不到这一点）。"""
     for policy in ("owned", "consensus"):
-        code = main([
-            "short", "scan", "--bam", str(tmp_path / "missing.bam"),
-            "--query-chr", "insertA", "--insert-origin-policy", policy,
-            "--drop-shared-reads", "--out-dir", str(tmp_path),
-        ])
+        code = main(
+            [
+                "short",
+                "scan",
+                "--bam",
+                str(tmp_path / "missing.bam"),
+                "--query-chr",
+                "insertA",
+                "--insert-origin-policy",
+                policy,
+                "--drop-shared-reads",
+                "--out-dir",
+                str(tmp_path),
+            ]
+        )
         # 参数被接受（否则 argparse 会以 2 退出并说 invalid choice），失败发生在读 BAM（1）
         assert code == 1

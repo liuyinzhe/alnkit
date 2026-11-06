@@ -613,9 +613,9 @@ def run_self_test() -> None:
         == "drop_ambiguous_insert"
     )
     assert (
-        decide_read_usage([], [tied_hit, target_hit], set(), "target_ref", insert_list, "consensus")[
-            1
-        ]
+        decide_read_usage(
+            [], [tied_hit, target_hit], set(), "target_ref", insert_list, "consensus"
+        )[1]
         == "drop_ambiguous_insert"
     )
     # 实测数据里的真实情形：clip 落在三个插入片段共有的 31 bp 序列上 -> 三方并列
@@ -655,15 +655,28 @@ def run_self_test() -> None:
 
     # (5d) --drop-shared-reads：归属 query、但在其它序列上还有 secondary/XA 命中 -> 剔除
     strict_keep, strict_reason, _, _ = decide_read_usage(
-        [], [target_hit], {"target_ref", "homolog_ref"}, "target_ref", insert_list,
-        "owned", drop_shared_reads=True
+        [],
+        [target_hit],
+        {"target_ref", "homolog_ref"},
+        "target_ref",
+        insert_list,
+        "owned",
+        drop_shared_reads=True,
     )
     assert (strict_keep, strict_reason) == (False, "drop_shared_with_other_insert")
     # 同一开关与 consensus 组合也生效（今天两个需求可同时表达）
-    assert decide_read_usage(
-        [], [target_hit], {"target_ref", "homolog_ref"}, "target_ref", insert_list,
-        "consensus", drop_shared_reads=True
-    )[1] == "drop_shared_with_other_insert"
+    assert (
+        decide_read_usage(
+            [],
+            [target_hit],
+            {"target_ref", "homolog_ref"},
+            "target_ref",
+            insert_list,
+            "consensus",
+            drop_shared_reads=True,
+        )[1]
+        == "drop_shared_with_other_insert"
+    )
     # 不开开关时保留（只做归属区分，不剔除共有 read）
     assert (
         decide_read_usage([], [target_hit], {"homolog_ref"}, "target_ref", insert_list, "owned")[0]
