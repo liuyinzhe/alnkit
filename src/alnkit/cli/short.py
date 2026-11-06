@@ -48,6 +48,7 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
             "  alnkit short scan --self-test\n"
             "\n产物:\n"
             "  三张 legacy .xls（列名与旧脚本一致）+ <sample>.sites.canonical.tsv（机器接口）。\n"
+            "  逐列含义与读法：docs/concepts/short-scan-output.md\n"
             "  注意: reads_info 的 legacy 表头把 stand 与 mapping_quality 合并成一列（11 列），\n"
             "  数据行其实是 12 列——按表头名解析会错位，按位置或用 canonical 表。\n"
             "\n错配来源与 markdup:\n"

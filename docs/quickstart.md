@@ -45,6 +45,9 @@ alnkit short scan --bam-dir ./bams --query-chr target_ref \
 + `<sample>.sites.canonical.tsv`（机器接口：`insert_pos_1based` / `insert_pos_0based` /
 `insert_boundary_0based` 三列并列，恒等式由测试守住）。
 
+逐列含义、以及**最容易读错的 `Insert_Interference`（"共享证据"≠"基因组同源"）**，
+见 [short scan 输出表](concepts/short-scan-output.md)。
+
 ### 参数怎么选（推荐做法）
 
 | 参数 | 建议 | 为什么 |

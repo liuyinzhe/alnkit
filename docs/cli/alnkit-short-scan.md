@@ -72,6 +72,7 @@ alnkit short scan --bam-dir ./bam --query-chr target_ref \
 ```text
 产物:
   三张 legacy .xls（列名与旧脚本一致）+ <sample>.sites.canonical.tsv（机器接口）。
+  逐列含义与读法：docs/concepts/short-scan-output.md
   注意: reads_info 的 legacy 表头把 stand 与 mapping_quality 合并成一列（11 列），
   数据行其实是 12 列——按表头名解析会错位，按位置或用 canonical 表。
 ```
