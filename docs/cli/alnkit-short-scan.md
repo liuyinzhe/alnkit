@@ -21,7 +21,7 @@ alnkit short scan [全局选项] [--bam …] [--bam-dir …] [--bam-glob …] [-
 | `--query-chr` NAME | 否 | — | 本次要出结果的外源插入序列名（必填，除非 --self-test） |
 | `--insert-chrs` NAME1,NAME2,... | 否 | — | 参考序列里全部外源/同源序列名，逗号分隔；默认只含 --query-chr |
 | `--insert-origin-policy` | 否 | `owned` | 共有 read 的区分策略：owned（默认）/owned-strict/lenient/consensus/legacy（可选：`owned`, `owned-strict`, `lenient`, `consensus`, `legacy`） |
-| `--merge-window-bp` INT | 否 | `0` | 位点窗口合并：相距 <= 该值的断点合并为一个位点，0=不合并（默认）；推荐 10 |
+| `--merge-window-bp` INT | 否 | `0` | 位点窗口合并：与簇内最小坐标相距 <= 该值的断点合并为一个位点（贪心、簇宽不超窗），0=不合并（默认，历史产物逐字节不变）。推荐 10–20：测序本身不产生这种抖动，抖动来自比对器对 clip 端点的判定，实测同一连接点的边界会散在 ~20 bp 内；取 3 会把同一连接点拆成多行、峰值支持数掉 10%%；反过来调到几十-几百 bp 会把同一座位两侧的两个连接点并成一行 |
 | `--min-mapq` INT | 否 | `20` | 比对质量 <= 该值则丢弃，默认 20 |
 | `--max-mismatch` INT | 否 | `3` | 错配数 > 该值则丢弃，默认 3 |
 | `--max-softclip-blocks` INT | 否 | `1` | soft clip 段数 > 该值则丢弃，默认 1 |

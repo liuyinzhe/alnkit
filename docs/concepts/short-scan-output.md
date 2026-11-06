@@ -189,7 +189,47 @@ insert_boundary_0based == insert_pos_1based
 | `Insert_Position` 的数字是 1-based 还是 0-based | 两者数值相同（“断点左侧碱基的 1-based 坐标”＝“0-based 边界”），要明确基准请看 `sites.canonical.tsv` |
 | minimap2 的结果和 bwa 等价 | 不等价：minimap2 默认**不写 XA 标签**，归属判定只剩 secondary，支持数会明显下降；二代链路请用 `bwa mem -Y`（**不要** `-M`） |
 
-## 8. 自查：我的表跑对了吗
+## 8. 怎么定 `--merge-window-bp`（实测方法，别猜）
+
+**默认值是 0**（不合并，历史产物逐字节不变）。要不要合并、合多少，用下面三行在自己的数据上扫一遍：
+
+```bash
+for w in 0 3 10 20 50; do
+  alnkit short scan --bam sampleA.markdup.bam --query-chr insertA \
+      --insert-chrs insertA,insertB --merge-window-bp $w --sample-name w$w --out-dir out_w$w
+done
+cut -f1,2,3,4 out_w*/w*.Insert_Position.result.xls    # 比位点数与支持数
+```
+
+判读标准只有两条：**峰值位点的支持数什么时候不再涨**、**同一座位两侧的两个连接点什么时候被并掉**。
+
+一次实测（短读长 PE，插入位点两侧是方向相反的两个 clip）的典型形状：
+
+| 簇 | 边界点落在多少个位置 | 跨度（bp） |
+|---|---|---|
+| 连接点 A（支持数低） | 5 | 19 |
+| 连接点 B（峰值所在） | 7 | 9 |
+| A 与 B 之间 | — | 52 |
+
+对应扫描结果：
+
+| 窗口 | 位点数 | 峰值连接点的 SR | 备注 |
+|---|---|---|---|
+| 0 | 23 | 113 | 每个边界各自一行 |
+| 3 | 15 | 115 | **同一连接点被拆成 7 行**（抖动 > 3） |
+| 10 | 11 | 125 | 峰值连接点印成一簇；低支持那一簇还分 2 行 |
+| 20 | 10 | 125 | 两簇各自成一簇，两个连接点仍分开（52 > 20） |
+
+两条结论：
+
+1. **抖动不是测序错误**，是比对器对 clip 端点的判定（junction 附近有微 indel / 同源时尤其明显），
+   实测可达 ~20 bp —— 所以 `3` 偏小，会把同一连接点拆散、让 `--min-sr-support` 误杀真证据；
+2. **聚类是锚点式**（与簇内最小坐标比、簇宽不超过窗口，不会链式无限合并），
+   所以“一簇跨度 19 bp”就需要窗口 ≥19 才能收成一行；
+3. 反过来别用几十到几百 bp：同一位座两侧的两个连接点通常相距几十~几百 bp，并掉就只剩一行，
+   **结构信息永久丢失**。降噪请用 `--min-sr-support`，不要用窗口。
+
+## 9. 自查：我的表跑对了吗
 
 ```bash
 alnkit short scan --bam sampleA.markdup.bam --query-chr insertA \

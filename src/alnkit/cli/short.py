@@ -124,7 +124,13 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         type=int,
         default=0,
         metavar="INT",
-        help="位点窗口合并：相距 <= 该值的断点合并为一个位点，0=不合并（默认）；推荐 10",
+        help=(
+            "位点窗口合并：与簇内最小坐标相距 <= 该值的断点合并为一个位点"
+            "（贪心、簇宽不超窗），0=不合并（默认，历史产物逐字节不变）。"
+            "推荐 10–20：测序本身不产生这种抖动，抖动来自比对器对 clip 端点的判定，"
+            "实测同一连接点的边界会散在 ~20 bp 内；取 3 会把同一连接点拆成多行、"
+            "峰值支持数掉 10%%；反过来调到几十-几百 bp 会把同一座位两侧的两个连接点并成一行"
+        ),
     )
     parser.add_argument(
         "--min-mapq",
