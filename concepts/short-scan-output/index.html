@@ -1,0 +1,2144 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="BAM/PAF 的插入证据工具箱：断点提取 + 独立绘图">
+      
+      
+      
+        <link rel="canonical" href="https://liuyinzhe.github.io/alnkit/concepts/short-scan-output/">
+      
+      
+        <link rel="prev" href="../output-tables/">
+      
+      
+        <link rel="next" href="../../cli/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>short scan 输出表 - alnkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#short-scan" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="alnkit" class="md-header__button md-logo" aria-label="alnkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            alnkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              short scan 输出表
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="深色"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="深色" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="浅色"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="浅色" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/liuyinzhe/alnkit" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    liuyinzhe/alnkit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="alnkit" class="md-nav__button md-logo" aria-label="alnkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    alnkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/liuyinzhe/alnkit" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    liuyinzhe/alnkit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速开始
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    约定
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    约定
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../coordinates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    坐标
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    表契约
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../output-tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    各命令的输出表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    short scan 输出表
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    short scan 输出表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 产物清单
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 数据流（一行一个阶段）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-sampleinsert_positionresultxls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. &lt;sample&gt;.Insert_Position.result.xls（位点主表）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-samplereads_infooutxls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. &lt;sample&gt;.reads_info.out.xls（逐比对明细）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-samplesitescanonicaltsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. &lt;sample&gt;.sites.canonical.tsv（规范位点表，机器接口）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#51-samplesite_homologytsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 &lt;sample&gt;.site_homology.tsv（可选：位点是不是内源同源）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-sampleinsert_interferenceresultxls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. &lt;sample&gt;.Insert_Interference.result.xls（干扰诊断，最容易读错）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. &lt;sample&gt;.Insert_Interference.result.xls（干扰诊断，最容易读错）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 列
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 判定链（query 永远不算源头）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 它的价值：不是“基因组同源性”
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 同一个名字，两张表里含义不同
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 其他注意
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-insert-origin-policy-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 归属策略：--insert-origin-policy（哪些 read 才算证据）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 归属策略：--insert-origin-policy（哪些 read 才算证据）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 推荐怎么选（按数据形态，不按个人偏好）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 常见误读清单
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-merge-window-bp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 怎么定 --merge-window-bp（实测方法，别猜）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 自查：我的表跑对了吗
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI 参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CLI 参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI 参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-doctor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    doctor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-selftest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    selftest
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-seg-table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    seg table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-plot-tracks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    plot tracks（三代）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-plot-ribbon/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    plot ribbon（三代）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-plot-insertion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    plot insertion（二代）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-plot-coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    plot coverage（二代）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-short-scan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    short scan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-long-classify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    long classify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-long-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    long graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-long-breakpoints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    long breakpoints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-long-assemble/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    long assemble
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/alnkit-long-locate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    long locate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 产物清单
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 数据流（一行一个阶段）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-sampleinsert_positionresultxls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. &lt;sample&gt;.Insert_Position.result.xls（位点主表）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-samplereads_infooutxls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. &lt;sample&gt;.reads_info.out.xls（逐比对明细）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-samplesitescanonicaltsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. &lt;sample&gt;.sites.canonical.tsv（规范位点表，机器接口）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#51-samplesite_homologytsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 &lt;sample&gt;.site_homology.tsv（可选：位点是不是内源同源）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-sampleinsert_interferenceresultxls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. &lt;sample&gt;.Insert_Interference.result.xls（干扰诊断，最容易读错）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. &lt;sample&gt;.Insert_Interference.result.xls（干扰诊断，最容易读错）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 列
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 判定链（query 永远不算源头）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 它的价值：不是“基因组同源性”
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 同一个名字，两张表里含义不同
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 其他注意
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-insert-origin-policy-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 归属策略：--insert-origin-policy（哪些 read 才算证据）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 归属策略：--insert-origin-policy（哪些 read 才算证据）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 推荐怎么选（按数据形态，不按个人偏好）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 常见误读清单
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-merge-window-bp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 怎么定 --merge-window-bp（实测方法，别猜）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 自查：我的表跑对了吗
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="short-scan"><code>short scan</code> 的输出表怎么读<a class="headerlink" href="#short-scan" title="Permanent link">&para;</a></h1>
+<p>本页解释 <code>alnkit short scan</code> 产出的每一个文件、每一列的含义，以及<strong>最容易读错的两张表</strong>
+（<code>Insert_Interference</code> 与 <code>site_homology</code>）。示例一律用占位名（<code>sampleA</code>、<code>chr1</code>、
+<code>insertA</code>/<code>insertB</code>），和你自己的产物对照时请换成实际名字。</p>
+<p>其他命令的表（长读长链路、绘图）逐列解释见<a href="../output-tables/">各命令的输出表</a>。</p>
+<p>一句话版本：</p>
+<table>
+<thead>
+<tr>
+<th>你想回答的问题</th>
+<th>看哪张表</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>位点在哪、有多少证据</td>
+<td><code>&lt;sample&gt;.Insert_Position.result.xls</code> 或 <code>&lt;sample&gt;.sites.canonical.tsv</code></td>
+</tr>
+<tr>
+<td>机器接口 / 和下游 join</td>
+<td><code>&lt;sample&gt;.sites.canonical.tsv</code>（列名带基准后缀）</td>
+</tr>
+<tr>
+<td>每条支持 read 的比对长什么样</td>
+<td><code>&lt;sample&gt;.reads_info.out.xls</code></td>
+</tr>
+<tr>
+<td>证据是否与<strong>别的插入序列</strong>共享（多外源面板）</td>
+<td><code>&lt;sample&gt;.Insert_Interference.result.xls</code></td>
+</tr>
+<tr>
+<td>这个位点在基因组里是否<strong>与插入序列同源</strong>（外源 ↔ 内源）</td>
+<td><code>&lt;sample&gt;.site_homology.tsv</code>（要 <code>--reference-fasta</code> 或 <code>--homology-bed</code>）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1">1. 产物清单<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>何时产出</th>
+<th>格式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;sample&gt;.Insert_Position.result.xls</code></td>
+<td>总是</td>
+<td>8 列，TAB 分隔（历史格式，表头见 §3）</td>
+</tr>
+<tr>
+<td><code>&lt;sample&gt;.reads_info.out.xls</code></td>
+<td>总是</td>
+<td>表头 11 列、<strong>数据 12 列</strong>（历史缺陷，见 §4）</td>
+</tr>
+<tr>
+<td><code>&lt;sample&gt;.sites.canonical.tsv</code></td>
+<td>总是</td>
+<td>注册表 <code>insert_sites</code>（11 列，机器接口）</td>
+</tr>
+<tr>
+<td><code>&lt;sample&gt;.Insert_Interference.result.xls</code></td>
+<td>总是</td>
+<td>15 列，TAB 分隔（历史格式）</td>
+</tr>
+<tr>
+<td><code>&lt;sample&gt;.site_homology.tsv</code></td>
+<td>仅在给了 <code>--reference-fasta</code> 或 <code>--homology-bed</code> 时</td>
+<td>注册表 <code>site_homology</code>（12 列）</td>
+</tr>
+</tbody>
+</table>
+<p>文件名里的 <code>.xls</code> 只是历史命名，内容是纯文本 TSV。<code>--sample-name</code> 决定 <code>&lt;sample&gt;</code> 前缀。</p>
+<h2 id="2">2. 数据流（一行一个阶段）<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>BAM ──过滤(read 级)：flag/mapQ/错配/soft-clip 段数/候选闸门 ──► 候选 read
+     ──归属：把 read 判给 query / 别的插入 / 不明确 / 没有插入命中
+     ──证据：split read（断点处的 soft clip）+ PESR（双端同断点）
+     ──按 (chrom, 断点) 聚合 ──► BreakpointEvidence（含各种 read 名单 + 干扰源头）
+     ──窗口合并（--merge-window-bp）──► 代表位点
+     ──► 三张 legacy 表 + canonical 表（+ 可选 site_homology）
+</code></pre></div>
+<p>窗口合并只吸收 <strong>clip 端点抖动（几个 bp）</strong>，默认 0（不合并）。<code>--merge-window-bp 10</code>
+意味着相距 ≤10 bp 的断点算一个位点；把它调到几百 bp 会把同一座位两侧的两个连接点并成一行，
+<strong>结构信息就没了</strong>（两侧是不同方向的 clip，见 §7 的误读清单）。</p>
+<h2 id="3-sampleinsert_positionresultxls">3. <code>&lt;sample&gt;.Insert_Position.result.xls</code>（位点主表）<a class="headerlink" href="#3-sampleinsert_positionresultxls" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>列</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Chromosome</code></td>
+<td>参考序列名</td>
+</tr>
+<tr>
+<td><code>Insert_Position</code></td>
+<td>断点边界（0-based 数值 = 断点左侧碱基的 1-based 坐标，两者数值相同）</td>
+</tr>
+<tr>
+<td><code>split_read_support</code></td>
+<td>SR 支持 read 数（断点处有 soft clip 的 read）</td>
+</tr>
+<tr>
+<td><code>pair_split_read_support</code></td>
+<td>PESR 支持数（双端分别给出同一断点）</td>
+</tr>
+<tr>
+<td><code>dup_read_count</code></td>
+<td>被 markdup 标记、但落在这个位点的 read 数（<strong>默认不作为证据</strong>，只报数）</td>
+</tr>
+<tr>
+<td><code>split_read_name</code> / <code>pair_split_read_name</code> / <code>dup_read_name</code></td>
+<td>对应的 read 名单，<code>;</code> 分隔；空列表示 0 条</td>
+</tr>
+</tbody>
+</table>
+<p>读法：<strong>先看 <code>split_read_support</code> 的量级</strong>（真位点通常比邻居高一个数量级），再看
+<code>split_read_name</code> 里是否是同一批 read 在多个位点重复出现（<code>--merge-window-bp</code> 该调大还是调小，
+就看这个）。<code>dup_read_count</code> 不是“证据数”，它是<strong>质量信号</strong>：某位点 dup 很高说明这段区域重复。</p>
+<h2 id="4-samplereads_infooutxls">4. <code>&lt;sample&gt;.reads_info.out.xls</code>（逐比对明细）<a class="headerlink" href="#4-samplereads_infooutxls" title="Permanent link">&para;</a></h2>
+<p>历史缺陷（<strong>刻意保留</strong>，改了就破坏与旧产物的逐字节对账）：表头是 11 个字段，最后一项写成
+<code>stand,mapping_quality</code>（一个字段里塞两列），<strong>数据行实际是 12 列</strong>。请按<strong>列序</strong>解析：</p>
+<table>
+<thead>
+<tr>
+<th>序</th>
+<th>列</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>read_name</code></td>
+<td>read 名</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>read_pair</code></td>
+<td><code>read1</code> / <code>read2</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>cigarstring</code></td>
+<td>原始 CIGAR</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>is_supplementary</code></td>
+<td>该记录是否 supplementary（<code>True</code>/<code>False</code>）</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>chrom</code></td>
+<td>这条记录比对到哪条参考</td>
+</tr>
+<tr>
+<td>6–7</td>
+<td><code>M_ref_pos_start</code> / <code>M_ref_pos_end</code></td>
+<td>证据块（M 块）的参考起点/终点</td>
+</tr>
+<tr>
+<td>8–9</td>
+<td><code>M_read_pos_start</code> / <code>M_read_pos_end</code></td>
+<td>同一块在 read 轴上的起止</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>M_var_len</code></td>
+<td>该块长度</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>stand</code></td>
+<td><code>+</code> / <code>-</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>mapping_quality</code></td>
+<td>MAPQ</td>
+</tr>
+</tbody>
+</table>
+<p>用途：排查“这条 read 为什么被算成证据 / 为什么被丢弃”。它只含<strong>通过质量过滤</strong>的比对，
+所以被丢掉的 read 不会出现在这里——丢弃原因看日志里的 <code>statistics</code> 行。</p>
+<h2 id="5-samplesitescanonicaltsv">5. <code>&lt;sample&gt;.sites.canonical.tsv</code>（规范位点表，机器接口）<a class="headerlink" href="#5-samplesitescanonicaltsv" title="Permanent link">&para;</a></h2>
+<p>列定义见<a href="../tables/">表契约</a>的 <code>insert_sites</code>。与主表
+（<code>&lt;sample&gt;.Insert_Position.result.xls</code>）<strong>按 <code>(chrom, insert_pos_1based)</code> 一一对应</strong>——同样的位点、
+同样的合并结果。恒等式：</p>
+<div class="highlight"><pre><span></span><code>insert_pos_1based - 1 == insert_pos_0based
+insert_boundary_0based == insert_pos_1based        # 边界值 = 左侧碱基的 1-based 坐标
+</code></pre></div>
+<p>表里<strong>不带 <code>#</code> 注释行</strong>（0.7.0 起），第一行就是表头，可以直接 <code>pandas.read_csv(sep="\t")</code>。</p>
+<p><code>nearest_other_insert</code> / <code>other_inserts</code> 来自干扰判定，但<strong>明确把 query 自己排除在外</strong>：
+“query 出现”只说明这条 read 也命中了本次的 query，不算竞争者（见 §6.3）。</p>
+<h2 id="51-samplesite_homologytsv">5.1 <code>&lt;sample&gt;.site_homology.tsv</code>（可选：位点是不是内源同源）<a class="headerlink" href="#51-samplesite_homologytsv" title="Permanent link">&para;</a></h2>
+<p>只有给了 <code>--reference-fasta</code> 或 <code>--homology-bed</code> 才生成。列定义见<a href="../tables/">表契约</a>的
+<code>site_homology</code>；这里说怎么读。表里同样<strong>不带 <code>#</code> 注释行</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>列</th>
+<th>读法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>is_homology_site</code></td>
+<td><code>yes</code> = 该位点落在一条“与插入序列同源的参考区域”里（两侧各放宽 50 bp）；<code>no</code> = 没落在任何同源区域</td>
+</tr>
+<tr>
+<td><code>region_sources</code></td>
+<td>命中来源，<code>;</code> 分隔：<code>insert:&lt;插入名&gt;</code> = 把<strong>插入序列</strong>回比该位点周围的参考窗口得到的区域；<code>bed:&lt;文件名/名字&gt;</code> = 你给的 BED 区域</td>
+</tr>
+<tr>
+<td><code>n_regions</code></td>
+<td>命中的区域个数（多个来源重叠时会 &gt;1）</td>
+</tr>
+<tr>
+<td><code>best_region_*</code></td>
+<td>重叠区域里“最可信”的那一段：<code>insert:</code> 来源按<strong>一致率</strong>取最高，BED 来源按<strong>长度</strong>取最长；坐标 1-based 闭区间</td>
+</tr>
+<tr>
+<td><code>best_region_identity</code></td>
+<td>回比得到的一致率（0-1，按 <code>cs</code> 标签的真实差异算）；BED 来源没有一致率，填 <code>-</code></td>
+</tr>
+<tr>
+<td><code>best_region_query_coverage</code></td>
+<td>插入序列被这段区域覆盖的比例（0-1）；cDNA 样插入隔着内含子时这个数会明显 &lt;1；BED 来源填 <code>-</code></td>
+</tr>
+</tbody>
+</table>
+<p>判读要点：</p>
+<ul>
+<li><code>region_sources</code> 里出现 <code>insert:&lt;query&gt;</code> 是<strong>正常且期望</strong>的：说明这条外源序列在基因组里有内源拷贝，
+  而该位点正好落在拷贝上 → 这个位点多半是内源干扰，不是整合位点；</li>
+<li>反过来，真整合位点应该 <code>no</code>（插入序列在那附近比不中基因组）；</li>
+<li>这条判据与 §6 的干扰表<strong>互相独立</strong>：干扰表只比较“插入之间”，看不到“外源 ↔ 基因组同源”；
+  外源与内源同源时，<strong>只有这张表能分开真假位点</strong>。</li>
+</ul>
+<h2 id="6-sampleinsert_interferenceresultxls">6. <code>&lt;sample&gt;.Insert_Interference.result.xls</code>（干扰诊断，<strong>最容易读错</strong>）<a class="headerlink" href="#6-sampleinsert_interferenceresultxls" title="Permanent link">&para;</a></h2>
+<h3 id="61">6.1 列<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>列</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Chromosome</code> / <code>Insert_Position</code></td>
+<td>与主表同口径的位点</td>
+</tr>
+<tr>
+<td><code>merged_position_count</code> / <code>merged_positions</code></td>
+<td>这一行由哪几个原始断点合并而来（窗口 0 时是它自己）</td>
+</tr>
+<tr>
+<td><code>query_insert</code></td>
+<td>本次运行的 <code>--query-chr</code>（整表同值）</td>
+</tr>
+<tr>
+<td><code>is_homology_interference</code></td>
+<td>该位点<strong>是否存在</strong>干扰源头（= 下面那个名单非空）</td>
+</tr>
+<tr>
+<td><code>interference_source_count</code></td>
+<td>干扰源头的<strong>插入序列个数</strong></td>
+</tr>
+<tr>
+<td><code>interference_source_support_reads</code></td>
+<td>每个源头各有几条支持 read，格式 <code>源头:条数;源头:条数</code></td>
+</tr>
+<tr>
+<td><code>support_reads_total</code></td>
+<td>该位点支持 read 总数（下面五项之和）</td>
+</tr>
+<tr>
+<td><code>support_reads_owned_query</code></td>
+<td>归属 query 的 read 数</td>
+</tr>
+<tr>
+<td><code>support_reads_owned_other</code></td>
+<td>归属<strong>其它</strong>插入序列的 read 数（0.7.0 起恒为 0，见 §6.5）</td>
+</tr>
+<tr>
+<td><code>support_reads_consensus_assigned</code></td>
+<td>原本不明确、被同断点投票推定归属的 read 数（<code>consensus</code> 策略）</td>
+</tr>
+<tr>
+<td><code>support_reads_ambiguous</code></td>
+<td>归属不明确的 read 数</td>
+</tr>
+<tr>
+<td><code>support_reads_no_insert_hit</code></td>
+<td>完全没有插入命中的 read 数（0.7.0 起恒为 0，见 §6.5）</td>
+</tr>
+<tr>
+<td><code>ambiguous_read_names</code></td>
+<td>上面“不明确”那批 read 的名字，<code>;</code> 分隔</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-query">6.2 判定链（query 永远不算源头）<a class="headerlink" href="#62-query" title="Permanent link">&para;</a></h3>
+<ol>
+<li>每条比对贡献“插入命中”：<strong>自身命中</strong>（source=<code>alignment</code>/<code>secondary</code>）＋ <strong>XA 标签</strong>里的
+   备选命中（source=<code>xa</code>）；</li>
+<li>“共享信号”只取 <strong>secondary 与 XA</strong> 命中（<code>alignment</code> 不算）。注意：<strong>supplementary 属于
+   <code>alignment</code></strong>，所以“断点 read 的另一段落在插入序列上”（正常形态）不会触发干扰；</li>
+<li>汇总前先把 <strong>query 从命中集合与候选集合里剔除</strong>（0.7.0 起恒如此），然后：</li>
+<li>还有其它插入命中 → 这些就是源头；</li>
+<li>归属不明确（<code>ambiguous</code>）→ 该 read 命中过的<strong>其它</strong>插入都算源头；</li>
+<li>都没有 → 该 read 不贡献源头。</li>
+</ol>
+<blockquote>
+<p><strong>历史：0.6.0 及更早</strong>有一个 <code>--interference-scope {all,other}</code>。<code>all</code>（当时的默认）不剔除
+query，于是“断点 read 在插入面板上有次要命中”这条<strong>正常形态</strong>也会被记成源头——
+单外源面板下真位点与内源同源位点都变成 <code>True</code>，<code>interference_source_support_reads</code> 里还会
+出现 query 自己的名字（<code>insertA:3</code>）。这个口径无法区分生物学差异，已删除；下面 §6.3 说的
+都不再受它影响。</p>
+</blockquote>
+<h3 id="63">6.3 它的价值：<strong>不是“基因组同源性”</strong><a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
+<p>这个表名里的 homology 指的是<strong>“证据与插入面板共享”</strong>（同源 read 在多个插入序列间横跳），
+<strong>不是</strong>“外源序列与基因组同源”。两者后果完全不同：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>该看什么</th>
+<th>为什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>多外源面板（<code>insertA</code>/<code>insertB</code>/<code>insertC</code>），某些位点的 read 同时命中别的外源</td>
+<td>本表</td>
+<td>这就是它擅长的：挑出“跨外源共享证据”的位点</td>
+</tr>
+<tr>
+<td>外源序列与<strong>基因组内源</strong>序列同源（例如 query 是某内源基因的 cDNA 拷贝）</td>
+<td><code>&lt;sample&gt;.site_homology.tsv</code></td>
+<td>判据必须是“把插入序列回比基因组”，而不是“read 是否命中插入面板”</td>
+</tr>
+</tbody>
+</table>
+<p><strong>单外源面板下这张表恒为空</strong>（<code>is_homology_interference</code> 全 <code>False</code>、源头计数全 0）：
+面板里只有 query 一条插入，剔除 query 后没有可比较的对象。这不是 bug，也不是“没有干扰”——
+这类数据的干扰在<strong>外源 ↔ 基因组</strong>之间，本表按定义看不到。</p>
+<p>结论：<strong>不要用 <code>is_homology_interference</code> 做同源过滤</strong>。要排除“外源 ↔ 内源同源”造成的假位点，
+请用 <code>--reference-fasta</code>（插入序列回比位点周围窗口）或 <code>--homology-bed</code>（已知同源区域），
+看 <code>site_homology.tsv</code> 的 <code>is_homology_site</code>。</p>
+<h3 id="64">6.4 同一个名字，两张表里含义不同<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<ul>
+<li>本表 <code>interference_source_*</code> 里出现 <code>insertB</code>（<strong>另一条</strong>插入）＝ 证据与别的外源共享，
+  该位点可能来自外源之间的同源/共用片段；</li>
+<li><code>site_homology.tsv</code> 的 <code>region_sources</code> 里出现 <code>insert:insertA</code>（<strong>query 自己</strong>）＝
+  <strong>同源证据</strong>：这段参考序列与插入序列一致（内源拷贝就在那里）。这是<strong>正常且期望</strong>的标记。</li>
+</ul>
+<p>一张表只谈“插入之间”，另一张才谈“插入 ↔ 基因组”；结论不要互相印证。</p>
+<h3 id="65">6.5 其他注意<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>interference_source_count</code> 数的是<strong>源头个数</strong>，不是 read 数；read 数在
+  <code>interference_source_support_reads</code> 里；</li>
+<li><code>support_reads_owned_other</code> / <code>support_reads_no_insert_hit</code> 自 0.7.0 起<strong>恒为 0</strong>（这两类 read
+  在过滤阶段就被丢弃，不会再进到位点的支持 read 里）；列保留只是为了表格式不变；</li>
+<li>干扰判定与过滤策略无关：<code>support_reads_*</code> 各项恒等于该位点的归属分布，
+  <code>--insert-origin-policy</code> 只影响哪些 read 会被当作证据（见 §7）。</li>
+</ul>
+<h2 id="7-insert-origin-policy-read">7. 归属策略：<code>--insert-origin-policy</code>（哪些 read 才算证据）<a class="headerlink" href="#7-insert-origin-policy-read" title="Permanent link">&para;</a></h2>
+<p>一条 read 往往同时命中好几条序列（外源、内源同源、拼接旁系同源）。这个参数决定<strong>哪些 read
+被当成“这个位点的证据”</strong>，因此它直接改的是 <code>split_read_support</code> / <code>pair_split_read_support</code>
+（主表）与 <code>support_reads_*</code>（干扰表），注意它<strong>不改</strong>已保留 read 的坐标。</p>
+<p>判定顺序（<code>shortread/origin.py</code>）：先给每个插入序列打分，键依次是 <strong>MAPQ → 比对块长度 →
+错配数（少者优先）→ clip 长度</strong>（所以 MAPQ=60 的短命中会压过 MAPQ=0 的长命中），
+得分唯一 → 归属该插入；并列 → <code>ambiguous</code>；一个插入都没命中 → <code>no_insert_hit</code>。</p>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>保留谁</th>
+<th>丢掉谁</th>
+<th>什么时候用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>owned</code>（默认）</td>
+<td>归属 <strong>query</strong> 的 read</td>
+<td>归属其它插入、<code>ambiguous</code>、<code>no_insert_hit</code></td>
+<td>绝大多数情况从这里开始</td>
+</tr>
+<tr>
+<td><code>consensus</code></td>
+<td><code>owned</code> + 用<strong>同断点投票</strong>推定 <code>ambiguous</code> 的归属（附近 ±<code>--merge-window-bp</code> 内归属明确的 read 一致指向 query 才保留）</td>
+<td>投票为空或指向不一致的 ambiguous</td>
+<td>归属不明的 read 很多、又不想白白丢掉证据时（<strong>推断不是测量</strong>）</td>
+</tr>
+</tbody>
+</table>
+<p>另有一个<strong>可叠加的开关</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>开关</th>
+<th>作用</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--drop-shared-reads</code></td>
+<td>在 <code>owned</code>/<code>consensus</code> 之上，再剔除“归属 query、但在<strong>其它</strong>插入上还有次要/XA 命中”的共有 read</td>
+<td>外源之间高度相似（共享接头/载体）时，避免共有 read 把特异位点撑起来</td>
+</tr>
+</tbody>
+</table>
+<h3 id="71">7.1 推荐怎么选（按数据形态，不按个人偏好）<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<p><strong>三步走</strong>，不要一上来就换策略：</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 第 1 步：先用默认策略跑一遍，只看日志里这一行（统计会只列非 0 的键）</span>
+alnkit<span class="w"> </span>short<span class="w"> </span>scan<span class="w"> </span>--bam<span class="w"> </span>sampleA.bam<span class="w"> </span>--query-chr<span class="w"> </span>insertA<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--insert-chrs<span class="w"> </span>insertA,insertB<span class="w"> </span>--merge-window-bp<span class="w"> </span><span class="m">10</span><span class="w"> </span>--out-dir<span class="w"> </span>out_owned
+<span class="c1">#   -&gt; INFO 统计: {'reads_kept': ..., 'drop_other_insert': ..., 'drop_ambiguous_insert': ..., ...}</span>
+</code></pre></div>
+<ul>
+<li><code>drop_ambiguous_insert</code> 很大（几十上百）→ 有一批 read 在<strong>多个插入之间</strong>分不清归属 → 第 2 步试 <code>consensus</code>；</li>
+<li><code>drop_other_insert</code> 很大而 <code>drop_ambiguous_insert</code> ≈ 0 → 这是<strong>正常的</strong>（外源面板里该位点的 read 属于别条外源），不要动策略；</li>
+<li>两个都小、位点支持数也够 → <strong>就用 <code>owned</code></strong>，收工。</li>
+</ul>
+<p><strong>场景 → 推荐</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>你的情形</th>
+<th>推荐</th>
+<th>为什么 / 注意</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>单外源；外源与基因组内源序列同源（cDNA 拷贝、含内源片段）</td>
+<td><strong><code>owned</code></strong> + <code>--reference-fasta</code>（或 <code>--homology-bed</code>）</td>
+<td>这类干扰<strong>不在插入之间</strong>，任何策略都解决不了；靠 <code>site_homology.tsv</code> 的 <code>is_homology_site</code> 判。策略保持默认即可</td>
+</tr>
+<tr>
+<td>多外源，各外源序列<strong>互不同源</strong></td>
+<td><strong><code>owned</code></strong></td>
+<td>实测这种数据上 <code>owned</code>/<code>consensus</code> 结果逐字节相同，换策略没有收益</td>
+</tr>
+<tr>
+<td>多外源，且存在<strong>归属不明</strong>的 read（日志 <code>drop_ambiguous_insert</code> 大）</td>
+<td><strong><code>consensus</code></strong></td>
+<td>用同断点投票把“模糊但上下文明确”的 read 救回来；投票依据是 <code>--merge-window-bp</code> 内的邻居，所以窗口别设 0</td>
+</tr>
+<tr>
+<td>多外源，且<strong>共享接头/载体/骨架</strong>，担心共有 read 撑起假位点</td>
+<td><code>owned</code> 或 <code>consensus</code> + <strong><code>--drop-shared-reads</code></strong></td>
+<td>只剔“归属 query 但另在<strong>其它</strong>插入上有次要/XA 命中”的 read；单外源面板下它是 no-op</td>
+</tr>
+<tr>
+<td>位点支持数太少（个位数）且 <code>drop_ambiguous_insert ≈ 0</code></td>
+<td><strong>先别换策略</strong></td>
+<td>先降门槛（<code>--min-mapq</code>、<code>--max-mismatch</code>）或查 <code>reads_info.out.xls</code>；换策略也救不回来</td>
+</tr>
+<tr>
+<td>要复跑 0.6.0 及更早的整表口径做逐字节对账</td>
+<td>用 <strong><code>alnkit==0.6.0</code></strong>（或更早）跑，别再在当前版本上找开关</td>
+<td><code>legacy</code> / <code>--legacy-profile</code> 已在 0.7.0 删除：它会让位点 11 → 25、真位点 SR 125 → 87，不适合正式分析</td>
+</tr>
+</tbody>
+</table>
+<p><strong>四条不推荐的用法</strong>：</p>
+<ol>
+<li>指望用某个开关复现 0.6.0 的整表口径（<code>legacy</code> 已删除，需要就装旧版本）；</li>
+<li>用 <code>--drop-shared-reads</code> 解决“同源位点”——它只看插入之间，管不了外源 ↔ 基因组；</li>
+<li>把 <code>consensus</code> 当“更宽松的 owned”用在单外源面板上（没有 ambiguous read 时它等于 <code>owned</code>）；</li>
+<li><code>--merge-window-bp 0</code> 时直接换 <code>consensus</code>：投票只在<strong>完全同位</strong>的邻居之间发生，
+   实际几乎救不回任何 read（投票窗口就是 <code>--merge-window-bp</code>，推荐 10）。</li>
+</ol>
+<p><strong>判读时永远看这两张表，不要只看支持数</strong>：</p>
+<ul>
+<li><code>site_homology.tsv</code> → 这个位点是不是内源同源（要 <code>--reference-fasta</code>/<code>--homology-bed</code>）；</li>
+<li><code>Insert_Interference.result.xls</code> → 证据是否与插入面板共享（§6，注意它不是同源判定）。</li>
+</ul>
+<blockquote>
+<p>0.7.0 起策略从 5 个减到 2 个：<code>owned-strict</code> 变成开关 <code>--drop-shared-reads</code>（可与
+<code>consensus</code> 组合，旧的枚举值做不到），<code>lenient</code>（无条件保留归属不明的 read）删除——它把
+“不知道属于谁”的 read 当成证据，正是这类工具最该避免的方向；<code>legacy</code>（不做归属判定、
+全部保留）也删除——它与 <code>--legacy-profile</code> 一起，是唯一能复现旧脚本整表口径的路径，
+代价是位点数虚高、真位点支持数被稀释。旧命令写这些值会被 argparse 直接拒绝（退出码 2）。</p>
+<p><strong>对账影响</strong>：0.7.0 起只有 <code>Insert_Position.result.xls</code> 与 <code>reads_info.out.xls</code> 还能与旧脚本
+逐字节对上（黄金回归也只比这两张）；<code>Insert_Interference.result.xls</code> 的语义已改（§6.2），
+不再与上游产物比较。</p>
+</blockquote>
+<p>几点容易踩的：</p>
+<ul>
+<li><strong><code>--drop-shared-reads</code> 只看“其它插入”</strong>：query 自己的次要命中不算（那是正常形态），所以
+  单外源面板下它与不开这个开关完全等价。</li>
+<li><strong>两种策略可能完全等价</strong>：同一份数据（两条互不同源的外源）上，<code>owned</code> 与 <code>consensus</code>
+  产出的三张 legacy 表<strong>逐字节相同</strong> —— 因为这份数据里没有 <code>ambiguous</code>、也没有跨外源的共有
+  read。它们的分歧<strong>只在</strong>“存在 ambiguous 或共有 read”时才出现。</li>
+<li>策略只影响“哪些 read 算证据”，不影响干扰表的判定口径（那张表见 §6）。</li>
+</ul>
+<h2 id="8">8. 常见误读清单<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>误读</th>
+<th>实际</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>is_homology_interference=True</code> ⇒ 这个位点是内源同源</td>
+<td>不是，见 §6.3；要用 <code>site_homology.tsv</code></td>
+</tr>
+<tr>
+<td><code>dup_read_count</code> 是证据数</td>
+<td>不是，是被 markdup 标记的 read 数；默认不当证据（<code>--no-duplicate-filter</code> 才保留）</td>
+</tr>
+<tr>
+<td><code>--merge-window-bp</code> 调大能降噪</td>
+<td>只是把相邻位点并成一行，会抹掉“同一座位两侧两个连接点”的结构；降噪用 <code>--min-sr-support</code></td>
+</tr>
+<tr>
+<td><code>--min-clip-length</code> 能降噪</td>
+<td>会同步削掉真位点的支持 read（同一批 read 的 clip 长度不一），只能用来抬高“证据更硬”的门槛</td>
+</tr>
+<tr>
+<td><code>reads_info</code> 可以按表头名取列</td>
+<td>不能，表头 11 项 / 数据 12 列，按列序取（§4）</td>
+</tr>
+<tr>
+<td><code>Insert_Position</code> 的数字是 1-based 还是 0-based</td>
+<td>两者数值相同（“断点左侧碱基的 1-based 坐标”＝“0-based 边界”），要明确基准请看 <code>sites.canonical.tsv</code></td>
+</tr>
+<tr>
+<td>minimap2 的结果和 bwa 等价</td>
+<td>不等价：minimap2 默认<strong>不写 XA 标签</strong>，归属判定只剩 secondary，支持数会明显下降；二代链路请用 <code>bwa mem -Y</code>（<strong>不要</strong> <code>-M</code>）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-merge-window-bp">9. 怎么定 <code>--merge-window-bp</code>（实测方法，别猜）<a class="headerlink" href="#9-merge-window-bp" title="Permanent link">&para;</a></h2>
+<p><strong>默认值是 0</strong>（不合并，历史产物逐字节不变）。要不要合并、合多少，用下面三行在自己的数据上扫一遍：</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span>w<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="m">50</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>alnkit<span class="w"> </span>short<span class="w"> </span>scan<span class="w"> </span>--bam<span class="w"> </span>sampleA.markdup.bam<span class="w"> </span>--query-chr<span class="w"> </span>insertA<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>--insert-chrs<span class="w"> </span>insertA,insertB<span class="w"> </span>--merge-window-bp<span class="w"> </span><span class="nv">$w</span><span class="w"> </span>--sample-name<span class="w"> </span>w<span class="nv">$w</span><span class="w"> </span>--out-dir<span class="w"> </span>out_w<span class="nv">$w</span>
+<span class="k">done</span>
+cut<span class="w"> </span>-f1,2,3,4<span class="w"> </span>out_w*/w*.Insert_Position.result.xls<span class="w">    </span><span class="c1"># 比位点数与支持数</span>
+</code></pre></div>
+<p>判读标准只有两条：<strong>峰值位点的支持数什么时候不再涨</strong>、<strong>同一座位两侧的两个连接点什么时候被并掉</strong>。</p>
+<p>一次实测（短读长 PE，插入位点两侧是方向相反的两个 clip）的典型形状：</p>
+<table>
+<thead>
+<tr>
+<th>簇</th>
+<th>边界点落在多少个位置</th>
+<th>跨度（bp）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>连接点 A（支持数低）</td>
+<td>5</td>
+<td>19</td>
+</tr>
+<tr>
+<td>连接点 B（峰值所在）</td>
+<td>7</td>
+<td>9</td>
+</tr>
+<tr>
+<td>A 与 B 之间</td>
+<td>—</td>
+<td>52</td>
+</tr>
+</tbody>
+</table>
+<p>对应扫描结果：</p>
+<table>
+<thead>
+<tr>
+<th>窗口</th>
+<th>位点数</th>
+<th>峰值连接点的 SR</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>23</td>
+<td>113</td>
+<td>每个边界各自一行</td>
+</tr>
+<tr>
+<td>3</td>
+<td>15</td>
+<td>115</td>
+<td><strong>同一连接点被拆成 7 行</strong>（抖动 &gt; 3）</td>
+</tr>
+<tr>
+<td>10</td>
+<td>11</td>
+<td>125</td>
+<td>峰值连接点印成一簇；低支持那一簇还分 2 行</td>
+</tr>
+<tr>
+<td>20</td>
+<td>10</td>
+<td>125</td>
+<td>两簇各自成一簇，两个连接点仍分开（52 &gt; 20）</td>
+</tr>
+</tbody>
+</table>
+<p>两条结论：</p>
+<ol>
+<li><strong>抖动不是测序错误</strong>，是比对器对 clip 端点的判定（junction 附近有微 indel / 同源时尤其明显），
+   实测可达 ~20 bp —— 所以 <code>3</code> 偏小，会把同一连接点拆散、让 <code>--min-sr-support</code> 误杀真证据；</li>
+<li><strong>聚类是锚点式</strong>（与簇内最小坐标比、簇宽不超过窗口，不会链式无限合并），
+   所以“一簇跨度 19 bp”就需要窗口 ≥19 才能收成一行；</li>
+<li>反过来别用几十到几百 bp：同一位座两侧的两个连接点通常相距几十~几百 bp，并掉就只剩一行，
+   <strong>结构信息永久丢失</strong>。降噪请用 <code>--min-sr-support</code>，不要用窗口。</li>
+</ol>
+<h2 id="10">10. 自查：我的表跑对了吗<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>alnkit<span class="w"> </span>short<span class="w"> </span>scan<span class="w"> </span>--bam<span class="w"> </span>sampleA.markdup.bam<span class="w"> </span>--query-chr<span class="w"> </span>insertA<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--insert-chrs<span class="w"> </span>insertA,insertB<span class="w"> </span>--merge-window-bp<span class="w"> </span><span class="m">10</span><span class="w"> </span>--out-dir<span class="w"> </span>out<span class="w"> </span>--check-markdup
+</code></pre></div>
+<ul>
+<li>日志里 <code>statistics</code> 行给出每个阶段的计数（读到多少比对、丢掉多少、留下多少、写出多少行）——
+  支持数异常时先看这里；</li>
+<li><code>--check-markdup</code> 会在日志里报告 markdup 标记是否可信（未标记、标记不一致、单条被标 dup）；</li>
+<li>与历史产物的兼容性由测试守住：<code>Insert_Position.result.xls</code> 与 <code>reads_info.out.xls</code> 在相同
+  输入/参数下与旧脚本<strong>逐字节一致</strong>；canonical 表除 <code>sample</code> 列外一致；
+  <code>Insert_Interference.result.xls</code> 自 0.7.0 起语义已改（§6.2），不再参与逐字节对账。</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.top", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
