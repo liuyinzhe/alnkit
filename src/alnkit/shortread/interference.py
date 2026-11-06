@@ -26,26 +26,27 @@ def determine_interference_sources(
     candidate_insert_chromosomes: Set[str],
     homology_hit_chromosomes: Set[str],
     query_chromosome: Optional[str] = None,
-    scope: str = "all",
 ) -> Set[str]:
     """汇总一条 read 的“同源干扰源头”。
 
-    输入示例（三种典型情况）:
+    输入示例（三种典型情况，query_chromosome='target_ref'）:
         1) origin_label='owned_query',   candidate={'target_ref'}, homology={'homolog_ref'}
-        2) origin_label='ambiguous',      candidate={'target_ref', 'homolog_ref', 'decoy_ref'}, homology=同集
+        2) origin_label='ambiguous',      candidate={'target_ref', 'homolog_ref', 'decoy_ref'},
+                                          homology=同集
         3) origin_label='owned_query',   candidate={'target_ref'}, homology=set()
     输出示例:
-        1) {'homolog_ref'}                       # 明确归属 target，但另与同源序列一致
-        2) {'target_ref', 'homolog_ref', 'decoy_ref'}   # 无法判定，全部列为干扰源头
-        3) set()                               # 干净的唯一插入证据
+        1) {'homolog_ref'}                       # 明确归属 query，但另与同源序列一致
+        2) {'homolog_ref', 'decoy_ref'}          # 无法判定，除 query 外的候选都算源头
+        3) set()                                 # 干净的唯一插入证据
 
-    说明: 这是“是否同源干扰/干扰来自哪里”的唯一判据；表格里的干扰源头计数由它汇总而来。
+    说明: 这是“证据是否与别的插入序列共享”的唯一判据；表格里的干扰源头计数由它汇总而来。
+          **query 自己永远不算源头**——断点 read 的另一段本来就会落在 query 上，那是正常形态；
+          把它算进来会让真实位点也被标成 is_homology_interference=True（0.6.0 及更早的
+          --interference-scope all 就是这样，已删除）。
     """
     homology = set(homology_hit_chromosomes)
     candidates = set(candidate_insert_chromosomes)
-    if scope == "other" and query_chromosome:
-        # 只看“其它插入序列”：query 自身的命中是正常形态（断点 read 的另一段本来就落在外源上），
-        # 把它算成干扰会让真实位点也被标成 is_homology_interference=True
+    if query_chromosome:
         homology.discard(query_chromosome)
         candidates.discard(query_chromosome)
     if homology:

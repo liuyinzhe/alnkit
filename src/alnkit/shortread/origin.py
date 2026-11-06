@@ -82,7 +82,6 @@ def decide_read_usage(
         drop_shared_reads=True: 归属 target_ref 但另有同源命中
                                 -> (False, 'drop_shared_with_other_insert', None, 'owned_query')
         policy='consensus'    : 归属不明确 -> (False, 'drop_ambiguous_insert', ...)（调用方再按投票推定）
-        policy='legacy'       : -> (True, 'kept_legacy', 归属比对或 None, 归属标签)
         （完全没有插入命中的 read 归属标签为 'no_insert_hit'）
 
     返回: (是否保留, 处置标签, 归属插入序列上的比对记录或 None, 归属标签)
@@ -108,8 +107,6 @@ def decide_read_usage(
     else:
         origin_label = "owned_other"
 
-    if policy == "legacy":
-        return True, "kept_legacy", origin_record, origin_label
     if ambiguous:
         return False, "drop_ambiguous_insert", None, origin_label
     if origin_chromosome is None:
@@ -186,21 +183,15 @@ def select_evidence_records(
     records: Sequence[AlignmentRecord],
     query_chromosome: str,
     insert_chromosomes: Sequence[str],
-    policy: str,
 ) -> List[AlignmentRecord]:
     """挑出参与断点统计的比对记录。
 
     输入示例:
         records = [chr2 上的比对, target_ref 上的比对]   # query_chromosome='target_ref'
-    输出示例:
-        policy != 'legacy' -> [chr2 上的比对]          # target_ref 自身坐标不算断点，另一个插入片段被剔除
-        policy == 'legacy' -> [chr2 上的比对, target_ref 上的比对]
+    输出示例: [chr2 上的比对]      # target_ref 自身坐标不算断点，其它插入片段也被剔除
 
-    说明: 非 legacy 策略下，落在"其它插入序列"上的比对不再计入断点，
-          避免把 A 插入片段的 read 记成 B 插入片段的断点证据。
+    说明: 落在"其它插入序列"上的比对不计入断点，避免把 A 插入片段的 read 记成 B 的断点证据。
     """
-    if policy == "legacy":
-        return list(records)
     other_insert_chromosomes = set(insert_chromosomes) - {query_chromosome}
     return [record for record in records if record.chromosome not in other_insert_chromosomes]
 
@@ -227,8 +218,7 @@ def discover_candidate_reads(
           实测（本仓库 BAM）逐记录闸门丢 7/30 个位点，逐 read 闸门 0 丢——那 7 个位点的
           共同形态是「基因组侧 `3S147M`/`23S127M` 等无 SA/XA 的 clip 比对 + mate 落在插入 contig 上」。
         - **不把“有 soft clip”当成候选条件**：证据的判定在 `decide_read_usage()`，
-          没有任何插入命中的 read 在 owned/consensus 下一律丢弃（legacy 例外）
-          （legacy 另外关掉闸门），所以“只有 clip、没有插入线索”的 read 永远不可能成为证据，
+          没有插入命中的 read 一律丢弃，所以“只有 clip、没有插入线索”的 read 永远不可能成为证据，
           加进来只多读、不会多出结果（实测：11 万条 12S138M 无关 read 会让候选从 1.1 万涨到 15.5 万，结果不变）。
         - 顺手统计 is_duplicate（0x400）与光学重复（dt/DT），供“BAM 是否做过 markdup”判断。
         - 子串判定可能因 contig 名互为子串而多收几条 read —— 只会多看，不会漏。
@@ -388,9 +378,8 @@ def select_read_evidences(
          [ReadEvidence(read_name='LH...:2416:17423:10304', ...)])   # 被 markdup 标记的重复 read
 
     说明（单记录 read 的处理）：
-        - --insert-origin-policy legacy 保留全部历史规则：比对记录数 <2 的 read 丢弃；
-        - 新策略下不适用该规则：插入侧比对常常因为 MAPQ 被过滤，只剩基因组侧那一条带 clip 的
-          比对，但它仍是有效的断点证据（归属由“插入命中”判定，不依赖该比对是否存在）。
+        - 单条比对的 read 也算证据：插入侧比对常常因为 MAPQ 被过滤，只剩基因组侧那一条带 clip
+          的比对，但它仍是有效的断点证据（归属由“插入命中”判定，不依赖该比对是否存在）。
     说明（重复 read 的处理）：
         - 只有“已通过归属判定”的 read 才可能被当作重复 read 剔除（否则 dup 列会把本该因归属
           被丢的 read 也算进去）；consensus 推定归属的 read 同样参与这个判断。
@@ -401,22 +390,6 @@ def select_read_evidences(
     read_evidences: List[ReadEvidence] = []
     pending_ambiguous_reads: List[ReadEvidence] = []
     for read_name, records in read_collection.records_by_read_name.items():
-        # (a) 历史规则（仅 --insert-origin-policy legacy）：比对记录数 <2 的 read 丢弃
-        if config.insert_origin_policy == "legacy" and len(records) < 2:
-            statistics["drop_single_alignment"] += 1
-            continue
-        # (b) 历史规则（仅 --insert-origin-policy legacy）：恰好两条比对、且 is_supplementary
-        #     与 M 块起始坐标都相同，视为普通 read 丢弃
-        #     （注意：历史实现的索引是 read_info[2]=is_supplementary 与 read_info[4]=M_ref_pos_start，
-        #      注释里写的 "cigarstring 与 chrom" 与实际不符）
-        if config.insert_origin_policy == "legacy" and len(records) == 2:
-            first, second = records
-            if (
-                first.is_supplementary == second.is_supplementary
-                and first.block_start == second.block_start
-            ):
-                statistics["drop_plain_pair"] += 1
-                continue
         # (c) 插入片段归属判定（共有 read 的区分）
         #     归属判定使用 insert_hits（落在插入序列上的 primary/supplementary/secondary 比对 + XA 命中，
         #     包含被质量过滤掉的），避免“插入侧比对因 MAPQ/错配被过滤 -> 被误判为不涉及任何插入片段”。
@@ -444,10 +417,7 @@ def select_read_evidences(
                         read_name=read_name,
                         all_records=list(records),
                         evidence_records=select_evidence_records(
-                            records,
-                            config.query_chromosome,
-                            config.insert_chromosomes,
-                            config.insert_origin_policy,
+                            records, config.query_chromosome, config.insert_chromosomes
                         ),
                         origin_record=origin_record,
                         origin_label=origin_label,
@@ -457,7 +427,6 @@ def select_read_evidences(
                             candidate_insert_chromosomes,
                             homology_hit_chromosomes,
                             config.query_chromosome,
-                            config.interference_scope,
                         ),
                     )
                 )
@@ -465,17 +434,12 @@ def select_read_evidences(
             statistics[reason] = statistics.get(reason, 0) + 1
             continue
         statistics["reads_kept"] += 1
-        if reason == "kept_ambiguous":
-            statistics["reads_kept_ambiguous"] += 1
         read_evidences.append(
             ReadEvidence(
                 read_name=read_name,
                 all_records=list(records),
                 evidence_records=select_evidence_records(
-                    records,
-                    config.query_chromosome,
-                    config.insert_chromosomes,
-                    config.insert_origin_policy,
+                    records, config.query_chromosome, config.insert_chromosomes
                 ),
                 origin_record=origin_record,
                 origin_label=origin_label,
@@ -485,7 +449,6 @@ def select_read_evidences(
                     candidate_insert_chromosomes,
                     homology_hit_chromosomes,
                     config.query_chromosome,
-                    config.interference_scope,
                 ),
             )
         )

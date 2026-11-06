@@ -104,25 +104,28 @@ insert_boundary_0based == insert_pos_1based
 | `interference_source_support_reads` | 每个源头各有几条支持 read，格式 `源头:条数;源头:条数` |
 | `support_reads_total` | 该位点支持 read 总数（下面五项之和） |
 | `support_reads_owned_query` | 归属 query 的 read 数 |
-| `support_reads_owned_other` | 归属**其它**插入序列的 read 数（`legacy` 策略下才会非 0） |
+| `support_reads_owned_other` | 归属**其它**插入序列的 read 数（0.7.0 起恒为 0，见 §6.5） |
 | `support_reads_consensus_assigned` | 原本不明确、被同断点投票推定归属的 read 数（`consensus` 策略） |
 | `support_reads_ambiguous` | 归属不明确的 read 数 |
-| `support_reads_no_insert_hit` | 完全没有插入命中的 read 数（`legacy` 策略下才会非 0） |
+| `support_reads_no_insert_hit` | 完全没有插入命中的 read 数（0.7.0 起恒为 0，见 §6.5） |
 | `ambiguous_read_names` | 上面“不明确”那批 read 的名字，`;` 分隔 |
 
-### 6.2 判定链（为什么源头里会出现 query 自己）
+### 6.2 判定链（query 永远不算源头）
 
 1. 每条比对贡献“插入命中”：**自身命中**（source=`alignment`/`secondary`）＋ **XA 标签**里的
    备选命中（source=`xa`）；
-2. “同源信号”只取 **secondary 与 XA** 命中（`alignment` 不算）。注意：**supplementary 属于
+2. “共享信号”只取 **secondary 与 XA** 命中（`alignment` 不算）。注意：**supplementary 属于
    `alignment`**，所以“断点 read 的另一段落在插入序列上”（正常形态）不会触发干扰；
-3. `--interference-scope` 决定怎么汇总：
-   - `all`（默认，历史口径）：secondary/XA 命中**任何**插入序列（**含 query**）就算源头；
-     归属不明确时把该 read 的全部候选插入序列都算源头；
-   - `other`：先把 **query 从命中集合与候选集合里剔除**，再按同样规则汇总。
+3. 汇总前先把 **query 从命中集合与候选集合里剔除**（0.7.0 起恒如此），然后：
+   - 还有其它插入命中 → 这些就是源头；
+   - 归属不明确（`ambiguous`）→ 该 read 命中过的**其它**插入都算源头；
+   - 都没有 → 该 read 不贡献源头。
 
-所以 `all` 下的 `interference_source_support_reads` 里出现 `insertA:3`（= query 自己的名字）
-**是设计出来的行为，不是串列**：它表示“这个位点有 3 条支持 read 在插入面板上还有次要/XA 命中”。
+> **历史：0.6.0 及更早**有一个 `--interference-scope {all,other}`。`all`（当时的默认）不剔除
+> query，于是“断点 read 在插入面板上有次要命中”这条**正常形态**也会被记成源头——
+> 单外源面板下真位点与内源同源位点都变成 `True`，`interference_source_support_reads` 里还会
+> 出现 query 自己的名字（`insertA:3`）。这个口径无法区分生物学差异，已删除；下面 §6.3 说的
+> 都不再受它影响。
 
 ### 6.3 它的价值：**不是“基因组同源性”**
 
@@ -131,49 +134,32 @@ insert_boundary_0based == insert_pos_1based
 
 | 场景 | 该看什么 | 为什么 |
 |---|---|---|
-| 多外源面板（`insertA`/`insertB`/`insertC`），某些位点的 read 同时命中别的外源 | 本表 + `--interference-scope other` | 这就是它擅长的：挑出“跨外源共享”的位点 |
+| 多外源面板（`insertA`/`insertB`/`insertC`），某些位点的 read 同时命中别的外源 | 本表 | 这就是它擅长的：挑出“跨外源共享证据”的位点 |
 | 外源序列与**基因组内源**序列同源（例如 query 是某内源基因的 cDNA 拷贝） | `<sample>.site_homology.tsv` | 判据必须是“把插入序列回比基因组”，而不是“read 是否命中插入面板” |
 
-在“单外源 + 该外源与基因组同源”的数据上，本表的两个口径**都会失去区分力**：
-
-- `all`：真位点也会被标 `True`，源头是 query 自己——因为断点 read 在插入面板上有次要命中是
-  正常形态；同源位点同样 `True`，两者**长得一样**；
-- `other`：query 被剔除后，单外源面板没有“别的插入”可比，于是**所有位点都变成 `False`**。
+**单外源面板下这张表恒为空**（`is_homology_interference` 全 `False`、源头计数全 0）：
+面板里只有 query 一条插入，剔除 query 后没有可比较的对象。这不是 bug，也不是“没有干扰”——
+这类数据的干扰在**外源 ↔ 基因组**之间，本表按定义看不到。
 
 结论：**不要用 `is_homology_interference` 做同源过滤**。要排除“外源 ↔ 内源同源”造成的假位点，
 请用 `--reference-fasta`（插入序列回比位点周围窗口）或 `--homology-bed`（已知同源区域），
 看 `site_homology.tsv` 的 `is_homology_site`。
 
-### 6.3.1 仍然有用的读法：看**比例**，别看布尔值
-
-布尔列（`is_homology_interference`）没有区分力，但
-`interference_source_support_reads / support_reads_total` 这个**比例**有：
-
-| 位点类型 | 比例 | 解读 |
-|---|---|---|
-| 内源同源位点（read 真正是“两处都能比上”） | ≈ 100% | 几乎所有支持 read 都有插入面板上的次要命中 |
-| 真整合位点 | 几个百分点 | 绝大多数 read 是干净的 chr↔插入 split read，只有个别 read 带次要命中 |
-| 噪声位点（单条 read 落错） | 0 | 那一条 read 没有面板上的次要命中 |
-
-在“单外源 + 外源与基因组内源同源”的数据上实测就是这个形状（100% / 2–3% / 0）。
-两条使用前提：**同一台 aligner**（bwa 写 XA、minimap2 不写，跨比对器不可比）、
-**同一次运行**（比例不是生物学常数，只是这批 read 的歧义度）。
-
 ### 6.4 同一个名字，两张表里含义不同
 
-- 本表 `interference_source_*` 里出现 `insertA`（query）＝ **共享证据**的信号（很可能是噪声，
-  见 §6.3）；
-- `site_homology.tsv` 的 `region_sources` 里出现 `insert:insertA` ＝ **同源证据**：
-  这段参考序列与插入序列一致（内源拷贝就在那里）。这是**正常且期望**的标记，不是错误。
+- 本表 `interference_source_*` 里出现 `insertB`（**另一条**插入）＝ 证据与别的外源共享，
+  该位点可能来自外源之间的同源/共用片段；
+- `site_homology.tsv` 的 `region_sources` 里出现 `insert:insertA`（**query 自己**）＝
+  **同源证据**：这段参考序列与插入序列一致（内源拷贝就在那里）。这是**正常且期望**的标记。
 
-两张表都“包含 query 的名字”，但一个是“嫌疑”，一个是“结论”，不要互相印证。
+一张表只谈“插入之间”，另一张才谈“插入 ↔ 基因组”；结论不要互相印证。
 
 ### 6.5 其他注意
 
-- 表里**没有**记录本次用的 `--interference-scope`（历史格式不带配置列），看日志首行的参数或
-  命令历史确认；
 - `interference_source_count` 数的是**源头个数**，不是 read 数；read 数在
   `interference_source_support_reads` 里；
+- `support_reads_owned_other` / `support_reads_no_insert_hit` 自 0.7.0 起**恒为 0**（这两类 read
+  在过滤阶段就被丢弃，不会再进到位点的支持 read 里）；列保留只是为了表格式不变；
 - 干扰判定与过滤策略无关：`support_reads_*` 各项恒等于该位点的归属分布，
   `--insert-origin-policy` 只影响哪些 read 会被当作证据（见 §7）。
 
@@ -188,15 +174,14 @@ insert_boundary_0based == insert_pos_1based
 
 | 策略 | 保留谁 | 丢掉谁 | 什么时候用 |
 |---|---|---|---|
-| `owned`（默认） | 归属 **query** 的 read | 归属其它插入、`ambiguous`、`no_insert_hit` | 多外源面板的常规选择：只信“确定属于本外源”的证据 |
-| `consensus` | `owned` + 用**同断点投票**推定 `ambiguous` 的归属（附近 ±`--merge-window-bp` 内归属明确的 read 一致指向 query 才保留） | 投票为空或指向不一致的 ambiguous | 同源干扰严重、又不想丢证据时（**推断不是测量**） |
-| `legacy` | **全部保留**（不做任何归属判定），并自动关闭候选 read 闸门 | 只有质量过滤（MAPQ / 错配 / clip 段数） | 复现旧脚本产物做逐字节对账；`--legacy-profile` 会隐含它 |
+| `owned`（默认） | 归属 **query** 的 read | 归属其它插入、`ambiguous`、`no_insert_hit` | 绝大多数情况从这里开始 |
+| `consensus` | `owned` + 用**同断点投票**推定 `ambiguous` 的归属（附近 ±`--merge-window-bp` 内归属明确的 read 一致指向 query 才保留） | 投票为空或指向不一致的 ambiguous | 归属不明的 read 很多、又不想白白丢掉证据时（**推断不是测量**） |
 
 另有一个**可叠加的开关**：
 
 | 开关 | 作用 | 说明 |
 |---|---|---|
-| `--drop-shared-reads` | 在 `owned`/`consensus` 之上，再剔除“归属 query、但在**其它**插入上还有次要/XA 命中”的共有 read | 外源之间高度相似（共享接头/载体）时，避免共有 read 把特异位点撑起来；对 `legacy` 无效 |
+| `--drop-shared-reads` | 在 `owned`/`consensus` 之上，再剔除“归属 query、但在**其它**插入上还有次要/XA 命中”的共有 read | 外源之间高度相似（共享接头/载体）时，避免共有 read 把特异位点撑起来 |
 
 ### 7.1 推荐怎么选（按数据形态，不按个人偏好）
 
@@ -221,12 +206,12 @@ alnkit short scan --bam sampleA.bam --query-chr insertA \
 | 多外源，各外源序列**互不同源** | **`owned`** | 实测这种数据上 `owned`/`consensus` 结果逐字节相同，换策略没有收益 |
 | 多外源，且存在**归属不明**的 read（日志 `drop_ambiguous_insert` 大） | **`consensus`** | 用同断点投票把“模糊但上下文明确”的 read 救回来；投票依据是 `--merge-window-bp` 内的邻居，所以窗口别设 0 |
 | 多外源，且**共享接头/载体/骨架**，担心共有 read 撑起假位点 | `owned` 或 `consensus` + **`--drop-shared-reads`** | 只剔“归属 query 但另在**其它**插入上有次要/XA 命中”的 read；单外源面板下它是 no-op |
-| 位点支持数太少（个位数）且 `drop_ambiguous_insert ≈ 0` | **先别换策略** | 先降门槛（`--min-mapq`、`--max-mismatch`）或查 `reads_info.out.xls`；换 `legacy` 只会把证据摊到更多位点上，SR 反而更小 |
-| 要和旧脚本产物逐字节对账 / 复跑历史结论 | **`legacy`**（或 `--legacy-profile` 一次带齐历史开关） | `legacy` 会多出大量噪声位点（实测 11 → 25）、真位点 SR 明显下降（125 → 87），**不要拿它做正式分析** |
+| 位点支持数太少（个位数）且 `drop_ambiguous_insert ≈ 0` | **先别换策略** | 先降门槛（`--min-mapq`、`--max-mismatch`）或查 `reads_info.out.xls`；换策略也救不回来 |
+| 要复跑 0.6.0 及更早的整表口径做逐字节对账 | 用 **`alnkit==0.6.0`**（或更早）跑，别再在当前版本上找开关 | `legacy` / `--legacy-profile` 已在 0.7.0 删除：它会让位点 11 → 25、真位点 SR 125 → 87，不适合正式分析 |
 
 **四条不推荐的用法**：
 
-1. 用 `legacy` 跑正式分析（位点数虚高、真位点支持数被稀释）；
+1. 指望用某个开关复现 0.6.0 的整表口径（`legacy` 已删除，需要就装旧版本）；
 2. 用 `--drop-shared-reads` 解决“同源位点”——它只看插入之间，管不了外源 ↔ 基因组；
 3. 把 `consensus` 当“更宽松的 owned”用在单外源面板上（没有 ambiguous read 时它等于 `owned`）；
 4. `--merge-window-bp 0` 时直接换 `consensus`：投票只在**完全同位**的邻居之间发生，
@@ -237,24 +222,24 @@ alnkit short scan --bam sampleA.bam --query-chr insertA \
 - `site_homology.tsv` → 这个位点是不是内源同源（要 `--reference-fasta`/`--homology-bed`）；
 - `Insert_Interference.result.xls` → 证据是否与插入面板共享（§6，注意它不是同源判定）。
 
-> 0.7.0 起策略从 5 个减到 3 个：原来的 `owned-strict` 变成 `--drop-shared-reads`（可与
-> `consensus` 组合，旧的枚举值做不到这一点），`lenient`（无条件保留归属不明的 read）已删除
-> —— 它把“不知道属于谁”的 read 当成证据，正是这类工具最该避免的方向。旧命令仍写这两个值
-> 会由 argparse 直接报错并列出可用值。
+> 0.7.0 起策略从 5 个减到 2 个：`owned-strict` 变成开关 `--drop-shared-reads`（可与
+> `consensus` 组合，旧的枚举值做不到），`lenient`（无条件保留归属不明的 read）删除——它把
+> “不知道属于谁”的 read 当成证据，正是这类工具最该避免的方向；`legacy`（不做归属判定、
+> 全部保留）也删除——它与 `--legacy-profile` 一起，是唯一能复现旧脚本整表口径的路径，
+> 代价是位点数虚高、真位点支持数被稀释。旧命令写这些值会被 argparse 直接拒绝（退出码 2）。
+>
+> **对账影响**：0.7.0 起只有 `Insert_Position.result.xls` 与 `reads_info.out.xls` 还能与旧脚本
+> 逐字节对上（黄金回归也只比这两张）；`Insert_Interference.result.xls` 的语义已改（§6.2），
+> 不再与上游产物比较。
 
 几点容易踩的：
 
-- **`legacy` 不是“更宽松的 owned”**：它连“没命中任何插入序列的 read”都算证据，位点数会明显变多、
-  真位点的支持数反而可能变小（证据被摊到更多位点上）。实测一份 PE 数据：
-  `owned` 11 个位点、真位点 SR=125；`legacy` 25 个位点、真位点 SR=87。
 - **`--drop-shared-reads` 只看“其它插入”**：query 自己的次要命中不算（那是正常形态），所以
   单外源面板下它与不开这个开关完全等价。
-- **`owned` / `consensus` / `--drop-shared-reads` 可能完全等价**：同一份数据（两条互不同源的
-  外源）上，`owned`、`owned-strict`（当时的取值）、`lenient`（当时的取值）、`consensus`
-  产出的三张 legacy 表**逐字节相同**，只有 `legacy` 不同 —— 因为这份数据里没有 `ambiguous`、
-  也没有跨外源的共有 read。它们的分歧**只在**“存在 ambiguous 或共有 read”时才出现。
-- 策略只影响“哪些 read 算证据”，不影响干扰表的判定口径（那张表见 §6；它的 `interference_scope`
-  是另一个旋钮）。
+- **两种策略可能完全等价**：同一份数据（两条互不同源的外源）上，`owned` 与 `consensus`
+  产出的三张 legacy 表**逐字节相同** —— 因为这份数据里没有 `ambiguous`、也没有跨外源的共有
+  read。它们的分歧**只在**“存在 ambiguous 或共有 read”时才出现。
+- 策略只影响“哪些 read 算证据”，不影响干扰表的判定口径（那张表见 §6）。
 
 ## 8. 常见误读清单
 
@@ -318,5 +303,6 @@ alnkit short scan --bam sampleA.markdup.bam --query-chr insertA \
 - 日志里 `statistics` 行给出每个阶段的计数（读到多少比对、丢掉多少、留下多少、写出多少行）——
   支持数异常时先看这里；
 - `--check-markdup` 会在日志里报告 markdup 标记是否可信（未标记、标记不一致、单条被标 dup）；
-- 与历史产物的兼容性由测试守住：legacy 三表在相同输入/参数下**逐字节一致**，
-  canonical 表除 `sample` 列外一致。
+- 与历史产物的兼容性由测试守住：`Insert_Position.result.xls` 与 `reads_info.out.xls` 在相同
+  输入/参数下与旧脚本**逐字节一致**；canonical 表除 `sample` 列外一致；
+  `Insert_Interference.result.xls` 自 0.7.0 起语义已改（§6.2），不再参与逐字节对账。

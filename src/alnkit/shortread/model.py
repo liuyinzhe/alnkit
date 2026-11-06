@@ -39,8 +39,6 @@ STAT_KEYS = (
     "drop_missing_tag",
     "drop_too_many_mismatches",
     "drop_failed_split_match",
-    "drop_single_alignment",
-    "drop_plain_pair",
     "drop_no_insert_hit",
     "drop_other_insert",
     "drop_ambiguous_insert",
@@ -104,7 +102,6 @@ class RuntimeConfig(NamedTuple):
     require_duplicate_flags: bool
     check_markdup: bool
     minimum_site_support: int
-    interference_scope: str
     reference_fasta: Optional[Path]
     homology_bed: Tuple[Path, ...]
     homology_min_identity: float
@@ -141,7 +138,6 @@ class ScanSettings:
     require_dup_flags: bool = False
     check_markdup: bool = False
     minimum_site_support: int = 1
-    interference_scope: str = "all"
     reference_fasta: Path | None = None
     homology_bed: tuple[Path, ...] = ()
     homology_min_identity: float = 0.90
@@ -149,7 +145,6 @@ class ScanSettings:
     homology_window_bp: int = 50000
     bam_threads: int = 1
     legacy_coordinates: bool = False
-    legacy_profile: bool = False
     log_level: str = "INFO"
     quiet: bool = False
 
@@ -223,7 +218,7 @@ class ReadEvidence(NamedTuple):
     字段说明:
         origin_label         归属标签（**与过滤策略无关**，供统计/干扰表使用）：
                              owned_query / owned_other / ambiguous / no_insert_hit
-        origin_status        本次运行的处置标签（kept_owned / kept_ambiguous / kept_legacy）
+        origin_status        本次运行的处置标签（kept_owned / kept_ambiguous / kept_consensus）
         interference_sources 与该 read 同源/共有的其它序列名（判据见 determine_interference_sources）
     """
 
@@ -252,9 +247,9 @@ class BreakpointEvidence(NamedTuple):
     字段说明:
         split_read_names / pair_split_read_names  历史表格用的名字（read_name/read_pair 与 read_name）
         owned_query_read_names                    归属明确 = query 的支持 read
-        owned_other_read_names                    归属明确 = 其它插入片段的支持 read（legacy 策略下会非 0）
+        owned_other_read_names                    归属明确 = 其它插入片段的支持 read（0.7.0 起恒为空：这类 read 已在过滤阶段丢弃）
         ambiguous_read_names                      归属无法区分的支持 read（由 --insert-origin-policy 决定丢弃/投票）
-        no_insert_hit_read_names                  未命中任何插入序列的支持 read（legacy 策略下会非 0）
+        no_insert_hit_read_names                  未命中任何插入序列的支持 read（0.7.0 起恒为空：同上）
         consensus_read_names                      由“同断点归属投票”推定归属的支持 read（consensus 策略）
         interference_source_read_names            干扰源头 -> 与之同源/共有的支持 read 名单
                                                   （存名单而不是计数，合并位点时可精确取并集）

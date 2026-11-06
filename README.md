@@ -190,6 +190,8 @@ hifiasm 仍然是更合适的选择——`long locate` 对任何来源的 `06_as
   其余产物不受影响；`--no-support-report` 可静默跳过。状态里的 `chimera_suspect` 是按
   “相邻窗口深度骤降到 1/5 以下且至少 3 处”判的，属于提示而不是定论。
 - **`short scan` 的 legacy 三表列名保持历史写法**（`Insert_Position` 等），不要按列名推断基准；
+  其中 `Insert_Position` / `reads_info` 与旧脚本逐字节一致，`Insert_Interference` 自 0.7.0 起
+  语义已改（干扰源头恒排除 query），不要拿旧产物对这张表；
   要机器可读、基准明确的版本请用同一目录下的 `<sample>.sites.canonical.tsv`
   （带 `_1based`/`_0based` 后缀，与 legacy 主表按 `(chrom, insert_pos_1based)` 一一对应）。
 - `long locate` 的 PDF 含生成时间，不能与其他运行逐字节比较（测试只比大小）；

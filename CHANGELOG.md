@@ -5,19 +5,29 @@
 
 ## [Unreleased]
 
-### Removed（破坏性：`--insert-origin-policy` 从 5 个值减到 3 个）
+### Removed（破坏性：归属策略 5 → 2，干扰口径只剩一种）
 
-- 删 `owned-strict`：改为开关 **`--drop-shared-reads`**（剔除“归属 query、但在其它插入上还有
-  次要/XA 命中”的共有 read）。好处是可以与 `consensus` 组合，旧的枚举值做不到。
-- 删 `lenient`：它把“归属不明确”的 read 无条件当成证据，方向与这类工具相反（会抬高假位点）。
-  需要利用这批 read 时改用 `consensus`（同断点投票，推断而非猜测）。
-- 保留 `owned`（默认）/ `consensus` / `legacy`。旧命令写上面两个值会由 argparse 直接报错并列出
-  可用值，不会静默改行为。
-- 实测依据：两条互不同源的外源、PE 150 bp 的一份数据上，`owned` / `owned-strict` / `lenient` /
-  `consensus` 产出的三张 legacy 表逐字节相同（只有 `legacy` 不同：位点 11 → 25、
-  真位点 SR 125 → 87），即那两个值只在“存在 ambiguous 或跨外源共有 read”时才有作用。
+- `--insert-origin-policy` 只保留 **`owned`（默认）/ `consensus`**：
+  - `owned-strict` → 改开关 **`--drop-shared-reads`**（剔除“归属 query、但在其它插入上还有
+    次要/XA 命中”的共有 read）。好处是可**与 `consensus` 组合**，旧的枚举值做不到。
+  - `lenient` 删：把“归属不明确”的 read 无条件当证据，方向与这类工具相反（抬高假位点）。
+    要利用这批 read 改用 `consensus`（同断点投票）。
+  - `legacy` 删：它不做归属判定、全部保留，会让位点 11 → 25、真位点 SR 125 → 87（实测），
+    唯一用途是与旧脚本整表对账——需要那个口径请装 `alnkit==0.6.0`。
+- **`--legacy-profile` 删**（它 = legacy 坐标 + legacy 归属 + MD 错配，其中归属那层已不存在）。
+  `--legacy-coordinates` 保留：它只影响“用哪个 M 块定断点”，仍可用于坐标层面的对照。
+- **`--interference-scope` 删**：干扰源头**恒排除 query**（即原来的 `other`）。0.6.0 的默认
+  `all` 会把“断点 read 在插入面板上有次要命中”这条正常形态记成干扰，导致单外源面板下真位点
+  与内源同源位点都被标 `True`、`interference_source_support_reads` 里出现 query 自己的名字。
+- 连带：`reads_kept_ambiguous` / `drop_single_alignment` / `drop_plain_pair` 三个统计键删除
+  （只有已移除的路径才会产生）；干扰表的 `support_reads_owned_other` /
+  `support_reads_no_insert_hit` 自本版起恒为 0（列保留以维持表格式）。
+- 旧命令写这些参数/取值会由 argparse 直接报错（退出码 2），不会静默改行为。
+- **对账影响（重要）**：`Insert_Position.result.xls` 与 `reads_info.out.xls` 在相同输入/参数下
+  仍与旧脚本逐字节一致（黄金回归只比这两张）；`Insert_Interference.result.xls` 的语义已改，
+  不再与上游产物比较。
 
-### Changed（破坏性：命令改名）
+### Changed（破坏性：命令改名）### Changed（破坏性：命令改名）
 
 - 两个二代出图命令从 `short` 移到 `plot`，与其他静图命令放在一起：
   `alnkit short insertion-plot` → **`alnkit plot insertion`**，

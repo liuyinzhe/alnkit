@@ -69,13 +69,16 @@ def test_insert_chrs_defaults_to_query_and_keeps_order() -> None:
     assert config.insert_chromosomes[0] == "target_ref"
 
 
-def test_legacy_profile_expands_to_legacy_switches() -> None:
-    config = scan.resolve_runtime_config(_settings(legacy_profile=True))
-    assert config.insert_origin_policy == "legacy"
-    assert config.mismatch_source == "md"
-    assert config.legacy_coordinates is True
-    # legacy 不做归属判定，候选闸门必须自动关闭
-    assert config.use_candidate_gate is False
+def test_removed_legacy_profile_and_scope_flags_are_rejected() -> None:
+    """0.7.0 删掉的 --legacy-profile / --interference-scope 必须由 argparse 拒绝。"""
+    for flags in (
+        ["--legacy-profile"],
+        ["--interference-scope", "other"],
+        ["--insert-origin-policy", "legacy"],
+    ):
+        with pytest.raises(SystemExit) as error:
+            main(["short", "scan", "--bam-dir", ".", *flags])
+        assert error.value.code == 2
 
 
 def test_candidate_gate_defaults_on_and_can_be_disabled() -> None:
@@ -209,8 +212,11 @@ def test_golden_tables_byte_identical(
     )
     assert code == 0
 
-    produced = set(output_files(tmp_path))
-    expected = set(golden_files(golden))
+    # 干扰表的语义在 0.7.0 变了（query 不再算源头），不能再用上游产物逐字节对账；
+    # 上游的两张表（Insert_Position / reads_info）仍然逐字节比。
+    not_comparable = {"sampleA.Insert_Interference.result.xls"}
+    produced = set(output_files(tmp_path)) - not_comparable
+    expected = set(golden_files(golden)) - not_comparable
     # 黄金来自上游脚本（只有三张 legacy 表）；alnkit 额外写 sites.canonical.tsv，
     # 所以断言"上游产物全部存在且逐字节一致 + 多出来的只有规范表"。
     assert expected <= produced, f"{case}: 缺产物 {sorted(expected - produced)}"
@@ -442,16 +448,15 @@ def test_scan_cli_accepts_check_markdup(tmp_path: Path) -> None:
 ### 位点级最小支持数 / 干扰口径 ###
 
 
-def test_determine_interference_sources_scope_other_excludes_query() -> None:
-    """scope=other 时 query 自身的命中不算干扰；ambiguous 时也只留其它插入。"""
+def test_interference_sources_always_exclude_the_query() -> None:
+    """query 自己永远不算干扰源头（断点 read 的另一段落在 query 上是正常形态）。"""
     from alnkit.shortread.interference import determine_interference_sources
 
-    assert determine_interference_sources("owned_query", {"q"}, {"q"}, "q", "all") == {"q"}
-    assert determine_interference_sources("owned_query", {"q"}, {"q"}, "q", "other") == set()
-    assert determine_interference_sources("owned_query", {"q"}, {"q", "h"}, "q", "other") == {"h"}
-    assert determine_interference_sources("ambiguous", {"q", "h"}, set(), "q", "other") == {"h"}
+    assert determine_interference_sources("owned_query", {"q"}, {"q"}, "q") == set()
+    assert determine_interference_sources("owned_query", {"q"}, {"q", "h"}, "q") == {"h"}
+    assert determine_interference_sources("ambiguous", {"q", "h"}, set(), "q") == {"h"}
     # ambiguous 且只命中 query 本身 → 没有其它插入，不构成干扰
-    assert determine_interference_sources("ambiguous", {"q"}, set(), "q", "other") == set()
+    assert determine_interference_sources("ambiguous", {"q"}, set(), "q") == set()
 
 
 def test_filter_by_minimum_support() -> None:

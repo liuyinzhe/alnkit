@@ -53,7 +53,7 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
             "  数据行其实是 12 列——按表头名解析会错位，按位置或用 canonical 表。\n"
             "\n错配来源与 markdup:\n"
             "  --mismatch-source nm（默认）读 NM；md 用 MD 推导（历史口径）。都不自动回退，\n"
-            "  标签缺失时按 --on-missing-tag 丢弃或报错；--legacy-profile 隐含 md。\n"
+            "  标签缺失时按 --on-missing-tag 丢弃或报错。\n"
             "  markdup 的 FLAG 0x400 与错配统计无关，只决定 dup 两列；用 --check-markdup 核对\n"
             "  标记是否可信（按两端 5' 坐标分组，再用 MD 判断被标 dup 的 read 是否真同序列）。"
         ),
@@ -114,13 +114,12 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
     parser.add_argument(
         "--insert-origin-policy",
         action="store",
-        choices=("owned", "consensus", "legacy"),
+        choices=("owned", "consensus"),
         default="owned",
         help=(
             "哪些 read 算这个位点的证据（不改坐标，只改支持数）："
             "owned=只留归属 query 的（默认）；"
-            "consensus=owned + 用同断点投票推定“归属不明确”的 read；"
-            "legacy=全部保留、不做归属判定（复现旧脚本用，位点会明显变多）。"
+            "consensus=owned + 用同断点投票推定“归属不明确”的 read。"
             "详见 docs/concepts/short-scan-output.md §7"
         ),
     )
@@ -131,7 +130,7 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         help=(
             "额外剔除“归属 query、但在其它插入序列上还有次要/XA 命中”的共有 read"
             "（原 --insert-origin-policy owned-strict）；可与 owned/consensus 组合，"
-            "对 legacy 无效"
+            "（对 consensus 同样生效）"
         ),
     )
     parser.add_argument(
@@ -208,7 +207,7 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
     parser.add_argument(
         "--no-candidate-gate",
         action="store_true",
-        help="关闭候选 read 闸门（等价 2.4.0 全量逐条处理）；legacy 策略下自动关闭",
+        help="关闭候选 read 闸门（等价 2.4.0 全量逐条处理，慢但不会漏 read）",
     )
     parser.add_argument(
         "--no-duplicate-filter",
@@ -224,17 +223,6 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         help=(
             "位点至少要有多少条支持 read（SR+PESR）才输出，默认 1（不过滤，保持历史行为）；"
             "设 2–3 可去掉单 read 噪声位点"
-        ),
-    )
-    parser.add_argument(
-        "--interference-scope",
-        dest="interference_scope",
-        choices=("all", "other"),
-        default="all",
-        help=(
-            "同源干扰的判据范围：all=支持 read 命中任何插入序列都算干扰（默认，历史口径，"
-            "多外源面板下偏灵敏）；other=只算 query 之外的插入（多外源面板更精确）。"
-            "注意：两者都只比较“插入之间”，无法识别“外源与基因组同源”造成的干扰"
         ),
     )
     parser.add_argument(
@@ -304,12 +292,10 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
     parser.add_argument(
         "--legacy-coordinates",
         action="store_true",
-        help="使用历史的 M 块选取规则（取最后一个 M 块）",
-    )
-    parser.add_argument(
-        "--legacy-profile",
-        action="store_true",
-        help="一键复现历史结果（= legacy 坐标 + legacy 归属 + 由 MD 推导错配）",
+        help=(
+            "使用历史的 M 块选取规则（取最后一个 M 块，断点会偏几十 bp）；"
+            "只影响坐标选取，0.7.0 起已无法凭它与旧脚本做整表逐字节对账（归属层已改）"
+        ),
     )
     parser.add_argument("--self-test", action="store_true", help="只跑内置自检（不读 BAM）")
     parser.set_defaults(handler=run_scan)
@@ -349,10 +335,8 @@ def run_scan(args: argparse.Namespace) -> int:
         homology_window_bp=args.homology_window_bp,
         homology_min_length=args.homology_min_length,
         minimum_site_support=args.min_sr_support,
-        interference_scope=args.interference_scope,
         bam_threads=args.bam_threads,
         legacy_coordinates=args.legacy_coordinates,
-        legacy_profile=args.legacy_profile,
         log_level=args.log_level,
         quiet=args.quiet,
     )

@@ -86,13 +86,7 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
                       insert_chromosomes=('decoy_ref','homolog_ref','target_ref'), ...)
     校验失败时调用 raise UsageError()（退出码 2）。
     """
-    # --legacy-profile 展开为各个历史开关
-    legacy_coordinates = settings.legacy_coordinates or settings.legacy_profile
-    insert_origin_policy = settings.insert_origin_policy
     mismatch_source = settings.mismatch_source
-    if settings.legacy_profile:
-        insert_origin_policy = "legacy"
-        mismatch_source = "md"
 
     if not settings.query_chr:
         raise UsageError("必须指定 --query-chr（本次要出结果的外源插入序列名）")
@@ -145,7 +139,7 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
         output_directory=settings.out_dir,
         query_chromosome=settings.query_chr,
         insert_chromosomes=insert_chromosomes,
-        insert_origin_policy=insert_origin_policy,
+        insert_origin_policy=settings.insert_origin_policy,
         drop_shared_reads=settings.drop_shared_reads,
         merge_window_bp=settings.merge_window_bp,
         mismatch_source=mismatch_source,
@@ -156,14 +150,12 @@ def resolve_runtime_config(settings: ScanSettings) -> RuntimeConfig:
         minimum_clip_length=settings.min_clip_length,
         keep_secondary_alignments=settings.keep_secondary,
         require_split_match=not settings.no_split_match,
-        legacy_coordinates=legacy_coordinates,
-        # legacy 不做归属判定（会保留“未命中任何插入序列”的 read），故不能用候选闸门
-        use_candidate_gate=not settings.no_candidate_gate and insert_origin_policy != "legacy",
+        legacy_coordinates=settings.legacy_coordinates,
+        use_candidate_gate=not settings.no_candidate_gate,
         exclude_duplicates=not settings.no_duplicate_filter,
         require_duplicate_flags=settings.require_dup_flags,
         check_markdup=settings.check_markdup,
         minimum_site_support=settings.minimum_site_support,
-        interference_scope=settings.interference_scope,
         reference_fasta=settings.reference_fasta,
         homology_bed=tuple(settings.homology_bed),
         homology_min_identity=settings.homology_min_identity,
@@ -636,10 +628,10 @@ def run_self_test() -> None:
     assert determine_interference_sources("owned_query", {"target_ref"}, {"homolog_ref"}) == {
         "homolog_ref"
     }
-    assert determine_interference_sources("ambiguous", {"target_ref", "homolog_ref"}, set()) == {
-        "target_ref",
-        "homolog_ref",
-    }
+    # 归属不明确：除 query 外的候选都算源头（query 自己永远不算）
+    assert determine_interference_sources(
+        "ambiguous", {"target_ref", "homolog_ref"}, set(), "target_ref"
+    ) == {"homolog_ref"}
     assert determine_interference_sources("owned_query", {"target_ref"}, set()) == set()
     assert collect_homology_hit_chromosomes(
         [
@@ -696,8 +688,9 @@ def run_self_test() -> None:
         decide_read_usage([genome_record], [], set(), "target_ref", insert_list, "owned")[1]
         == "drop_no_insert_hit"
     )
-    # legacy 不做任何归属判定
-    assert decide_read_usage([], [], set(), "target_ref", insert_list, "legacy")[1] == "kept_legacy"
+    # legacy 策略已删除：不认识的值必须被拦在 CLI 层（这里只保证 owned/consensus 两条路存在）
+    assert {decide_read_usage([], [], set(), "target_ref", insert_list, policy)[1]
+            for policy in ("owned", "consensus")} == {"drop_no_insert_hit"}
 
     # (6) 重复 read：只认 markdup 的 0x400，按 read 聚合（任一条记录被标记即算重复）
     assert read_is_duplicate([right_clipped, target_record]) is False
@@ -838,7 +831,6 @@ def run_self_test() -> None:
         require_duplicate_flags=False,
         check_markdup=False,
         minimum_site_support=1,
-        interference_scope="all",
         reference_fasta=None,
         homology_bed=(),
         homology_min_identity=0.90,
