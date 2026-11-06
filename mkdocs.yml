@@ -34,11 +34,11 @@ nav:
       - doctor: cli/alnkit-doctor.md
       - selftest: cli/alnkit-selftest.md
       - seg table: cli/alnkit-seg-table.md
-      - plot tracks: cli/alnkit-plot-tracks.md
-      - plot ribbon: cli/alnkit-plot-ribbon.md
+      - plot tracks（三代）: cli/alnkit-plot-tracks.md
+      - plot ribbon（三代）: cli/alnkit-plot-ribbon.md
+      - plot insertion（二代）: cli/alnkit-plot-insertion.md
+      - plot coverage（二代）: cli/alnkit-plot-coverage.md
       - short scan: cli/alnkit-short-scan.md
-      - short insertion-plot: cli/alnkit-short-insertion-plot.md
-      - short coverage: cli/alnkit-short-coverage.md
       - long classify: cli/alnkit-long-classify.md
       - long graph: cli/alnkit-long-graph.md
       - long breakpoints: cli/alnkit-long-breakpoints.md

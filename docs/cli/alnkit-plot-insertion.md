@@ -1,11 +1,11 @@
-# `alnkit short insertion-plot`
+# `alnkit plot insertion`
 
-窗口内按 soft clip 证据画插入位点示意图；脚本按“给了几个断点 + 每个断点有几侧 clip”自动选画法。出图只读 TSV：先写 clips/consensus 两张表，再由表渲染。
+适用于**短读长（二代 / PE）比对**：从 CIGAR 首尾的 soft clip 取断点证据，按“给了几个断点 + 每个断点有几侧 clip”自动选画法。长读长（三代）的比对片段请用 `plot tracks` / `plot ribbon`。出图只读 TSV：先写 clips/consensus 两张表，再由表渲染。
 
 ## 用法
 
 ```bash
-alnkit short insertion-plot [全局选项] [--bam …] [--region …] [--breakpoint …] [--out-dir …] [--name …] [--dpi …] [--no-consensus-text] [--no-formula]
+alnkit plot insertion [全局选项] [--bam …] [--region …] [--breakpoint …] [--out-dir …] [--name …] [--dpi …] [--no-consensus-text] [--no-formula]
 ```
 
 ## 参数
@@ -16,7 +16,7 @@ alnkit short insertion-plot [全局选项] [--bam …] [--region …] [--breakpo
 | `--region` CHROM:START-END | 是 | — | 窗口（1-based 闭区间），只画窗口内的 read |
 | `--breakpoint` POS | 是 | — | 断点（1-based，= 断点左侧碱基的坐标）；给 1 个=单断点图，2-3 个=多断点图；可重复 |
 | `--out-dir` | 否 | `.` | 输出目录，默认当前目录 |
-| `--name` | 否 | `insertion_plot` | 输出文件名前缀，默认 insertion_plot |
+| `--name` | 否 | `insertion` | 输出文件名前缀，默认 insertion |
 | `--dpi` | 否 | `150` | PNG 分辨率（默认 150） |
 | `--no-consensus-text` | 否 | 关 | 不在图底部写一致性序列文字 |
 | `--no-formula` | 否 | 关 | 不在图右下角写 Consensus fraction 公式 |
@@ -42,9 +42,9 @@ alnkit short insertion-plot [全局选项] [--bam …] [--region …] [--breakpo
 ```
 
 ```bash
-alnkit short insertion-plot --bam reads.bam --region chr1:99201-100800 \
+alnkit plot insertion --bam reads.bam --region chr1:99201-100800 \
       --breakpoint 100000 --out-dir out --name demo
-  alnkit short insertion-plot --bam reads.bam --region chr1:699101-700900 \
+  alnkit plot insertion --bam reads.bam --region chr1:699101-700900 \
       --breakpoint 700000 --breakpoint 700230 --out-dir out --name two
 ```
 

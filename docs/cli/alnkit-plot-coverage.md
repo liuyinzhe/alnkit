@@ -1,11 +1,11 @@
-# `alnkit short coverage`
+# `alnkit plot coverage`
 
-按区间统计覆盖度：逐碱基深度 -> 分箱 -> 上图广度 / 下图深度（可选 BED 基因轨道）。出图只读 TSV：先写 region/bins 两张表，再由表渲染。
+按区间统计覆盖度：逐碱基深度 -> 分箱 -> 上图广度 / 下图深度（可选 BED 基因轨道）。设计上是给**短读长（二代 / PE）数据**看的：覆盖度均匀性、插入片段两侧的断层，长读长数据也能跑但通常用 `plot ribbon` 看结构。出图只读 TSV：先写 region/bins 两张表，再由表渲染。
 
 ## 用法
 
 ```bash
-alnkit short coverage [全局选项] [--bam …] [--region …] [--out-dir …] [--name …] [--bins …] [--bed …] [--title …] [--width …] [--dpi …] [--bases-table …] [--min-mapq …] [--min-len …] [--min-depth …] [--max-depth …] [--ff …] [--rf …] [--list]
+alnkit plot coverage [全局选项] [--bam …] [--region …] [--out-dir …] [--name …] [--bins …] [--bed …] [--title …] [--width …] [--dpi …] [--bases-table …] [--min-mapq …] [--min-len …] [--min-depth …] [--max-depth …] [--ff …] [--rf …] [--list]
 ```
 
 ## 参数
@@ -46,10 +46,10 @@ alnkit short coverage [全局选项] [--bam …] [--region …] [--out-dir …] 
 ```
 
 ```bash
-alnkit short coverage --bam reads.bam --region insertA --out-dir out
-  alnkit short coverage --bam reads.bam --region chr1:1-20000 --bins 400 \
+alnkit plot coverage --bam reads.bam --region insertA --out-dir out
+  alnkit plot coverage --bam reads.bam --region chr1:1-20000 --bins 400 \
       --bed genes.bed --out-dir out --name region
-  alnkit short coverage --bam reads.bam --list
+  alnkit plot coverage --bam reads.bam --list
 ```
 
 ```text

@@ -1,4 +1,4 @@
-"""``short insertion-plot`` 的绘图层：从表渲染外源插入位点示意图。
+"""``plot insertion`` 的绘图层：从表渲染外源插入位点示意图（二代短读长比对）。
 
 输入只有两样东西：**已经算好的** :class:`~alnkit.shortread.insertion.ClipGroup` 列表
 （来自 ``insertion_clip_reads`` 表）与一个查看窗口；本模块不碰 BAM、不算一致性序列。
@@ -624,7 +624,7 @@ def render(
 
 @dataclass(frozen=True, slots=True)
 class InsertionSettings:
-    """一次 ``short insertion-plot`` 的全部输入。
+    """一次 ``plot insertion`` 的全部输入。
 
     示例::
 
@@ -686,7 +686,7 @@ def run(settings: InsertionSettings) -> dict[str, object]:
         f"sample={sample}",
         "window="
         + coords.format_region_1based(settings.chrom, settings.window_start, settings.window_end),
-        "producer=alnkit short insertion-plot",
+        "producer=alnkit plot insertion",
     )
     insertion.write_clip_table(clips_path, clip_reads, settings.chrom, sample, comments)
 

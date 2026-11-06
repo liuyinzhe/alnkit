@@ -124,7 +124,7 @@ COLUMNS: dict[str, tuple[str, ...]] = {
         "block_bp",
         "identity",
     ),
-    # 外源插入位点示意图的逐 read 证据：`short insertion-plot` 的唯一绘图输入。
+    # 外源插入位点示意图（`plot insertion`）的逐 read 证据：唯一绘图输入。
     "insertion_clip_reads": (
         "sample",
         "chrom",
@@ -169,7 +169,7 @@ COLUMNS: dict[str, tuple[str, ...]] = {
         "percent_covered",
         "mean_depth",
     ),
-    # 覆盖度：逐 bin 的广度与深度（`short coverage` 的两个绘图输入之一）。
+    # 覆盖度：逐 bin 的广度与深度（`plot coverage` 的两个绘图输入之一）。
     "coverage_bins": (
         "bin_index",
         "bin_start_1based",

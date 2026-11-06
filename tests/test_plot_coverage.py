@@ -1,4 +1,4 @@
-"""``short coverage``：深度口径、分箱、表契约、黄金对账、绘图与错误路径。
+"""``plot coverage``：深度口径、分箱、表契约、黄金对账、绘图与错误路径。
 
 fixture（``fixtures/coverage/reads.bam``，chr1 2.2 kb，坐标全是编造的）里有四种 CIGAR
 边界，黄金 ``fixtures/coverage/expected.bins.legacy.tsv`` 由并入前的独立脚本
@@ -362,7 +362,7 @@ def test_resolve_gene_color_falls_back_to_palette() -> None:
 def test_cli_end_to_end(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
+            "plot",
             "coverage",
             "--bam",
             str(BAM),
@@ -387,7 +387,7 @@ def test_cli_end_to_end(tmp_path: Path, capsys) -> None:
 def test_cli_default_name_comes_from_bam_and_region(tmp_path: Path) -> None:
     code = main(
         [
-            "short",
+            "plot",
             "coverage",
             "--bam",
             str(BAM),
@@ -407,7 +407,7 @@ def test_cli_default_name_comes_from_bam_and_region(tmp_path: Path) -> None:
 def test_cli_whole_contig_and_bases_table(tmp_path: Path) -> None:
     code = main(
         [
-            "short",
+            "plot",
             "coverage",
             "--bam",
             str(BAM),
@@ -429,7 +429,7 @@ def test_cli_whole_contig_and_bases_table(tmp_path: Path) -> None:
 
 
 def test_cli_list_references(capsys) -> None:
-    assert main(["short", "coverage", "--bam", str(BAM), "--list"]) == 0
+    assert main(["plot", "coverage", "--bam", str(BAM), "--list"]) == 0
     out = capsys.readouterr().out
     assert out.splitlines()[0] == "reference\tlength\tmapped"
     assert out.splitlines()[1].startswith("chr1\t2200\t")
@@ -437,7 +437,7 @@ def test_cli_list_references(capsys) -> None:
 
 def test_cli_filters_are_passed_through(tmp_path: Path, capsys) -> None:
     """--ff 放宽 flag 过滤、--min-len 抬门槛：两者都该改变选中 read 数。"""
-    common = ["short", "coverage", "--bam", str(BAM), "--region", "chr1:1-2000", "--bins", "8"]
+    common = ["plot", "coverage", "--bam", str(BAM), "--region", "chr1:1-2000", "--bins", "8"]
     assert main(common + ["--out-dir", str(tmp_path), "--name", "default"]) == 0
     assert "29 reads" in capsys.readouterr().out
     assert main(common + ["--out-dir", str(tmp_path), "--name", "unfiltered", "--ff", ""]) == 0
@@ -447,14 +447,14 @@ def test_cli_filters_are_passed_through(tmp_path: Path, capsys) -> None:
 
 
 def test_cli_requires_region_unless_list(tmp_path: Path, capsys) -> None:
-    assert main(["short", "coverage", "--bam", str(BAM), "--out-dir", str(tmp_path)]) == 2
+    assert main(["plot", "coverage", "--bam", str(BAM), "--out-dir", str(tmp_path)]) == 2
     assert "--region" in capsys.readouterr().err
 
 
 def test_cli_rejects_name_with_directory(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
+            "plot",
             "coverage",
             "--bam",
             str(BAM),
@@ -475,19 +475,19 @@ def test_cli_list_needs_index(tmp_path: Path, capsys) -> None:
 
     copy = tmp_path / "noindex.bam"
     shutil.copy(BAM, copy)
-    assert main(["short", "coverage", "--bam", str(copy), "--list"]) == 2
+    assert main(["plot", "coverage", "--bam", str(copy), "--list"]) == 2
     assert "索引" in capsys.readouterr().err
 
 
 def test_cli_rejects_missing_bam(tmp_path: Path, capsys) -> None:
-    assert main(["short", "coverage", "--bam", str(tmp_path / "nope.bam"), "--region", "chr1"]) == 2
+    assert main(["plot", "coverage", "--bam", str(tmp_path / "nope.bam"), "--region", "chr1"]) == 2
     assert "不存在" in capsys.readouterr().err
 
 
 def test_cli_rejects_unknown_reference(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
+            "plot",
             "coverage",
             "--bam",
             str(BAM),
@@ -504,7 +504,7 @@ def test_cli_rejects_unknown_reference(tmp_path: Path, capsys) -> None:
 def test_cli_rejects_empty_region(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
+            "plot",
             "coverage",
             "--bam",
             str(BAM),
@@ -521,7 +521,7 @@ def test_cli_rejects_empty_region(tmp_path: Path, capsys) -> None:
 def test_cli_rejects_missing_bed(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
+            "plot",
             "coverage",
             "--bam",
             str(BAM),

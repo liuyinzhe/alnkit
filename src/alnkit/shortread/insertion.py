@@ -1,4 +1,4 @@
-"""``short insertion-plot`` 的数据层：BAM → 逐 read 的 clip 证据表 + 一致性序列表。
+"""``plot insertion`` 的数据层：BAM → 逐 read 的 clip 证据表 + 一致性序列表。
 
 流水（``→`` 是数据流，不是调用顺序的猜测）::
 

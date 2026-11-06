@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成 ``short coverage`` 的合成 fixture（确定性，无时间戳）。
+"""生成 ``plot coverage`` 的合成 fixture（确定性，无时间戳）。
 
 全部是编造的序列与坐标（chr1 取 2 kb），不含任何真实数据。
 

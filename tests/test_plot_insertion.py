@@ -1,4 +1,4 @@
-"""``short insertion-plot``：一致性序列规则、表契约、黄金对账、画法与错误路径。
+"""``plot insertion``：一致性序列规则、表契约、黄金对账、画法与错误路径。
 
 全部用合成 fixture（``fixtures/insertion/reads.bam``，chr1 200 kb，坐标全是编造的）；
 黄金 ``fixtures/insertion/expected.consensus.legacy.tsv`` 由并入前的独立脚本生成
@@ -360,8 +360,8 @@ def test_plan_multi_breakpoint_blocks_keeps_gap() -> None:
 def test_cli_writes_png_and_both_tables(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
-            "insertion-plot",
+            "plot",
+            "insertion",
             "--bam",
             str(BAM),
             "--region",
@@ -390,8 +390,8 @@ def test_cli_writes_png_and_both_tables(tmp_path: Path, capsys) -> None:
 
 def test_cli_no_formula_makes_smaller_figure(tmp_path: Path) -> None:
     base = [
-        "short",
-        "insertion-plot",
+        "plot",
+        "insertion",
         "--bam",
         str(BAM),
         "--region",
@@ -413,8 +413,8 @@ def test_cli_no_formula_makes_smaller_figure(tmp_path: Path) -> None:
 def test_cli_rejects_name_with_directory(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
-            "insertion-plot",
+            "plot",
+            "insertion",
             "--bam",
             str(BAM),
             "--region",
@@ -434,8 +434,8 @@ def test_cli_rejects_name_with_directory(tmp_path: Path, capsys) -> None:
 def test_cli_rejects_unknown_breakpoint(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
-            "insertion-plot",
+            "plot",
+            "insertion",
             "--bam",
             str(BAM),
             "--region",
@@ -453,8 +453,8 @@ def test_cli_rejects_unknown_breakpoint(tmp_path: Path, capsys) -> None:
 def test_cli_rejects_bad_region(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
-            "insertion-plot",
+            "plot",
+            "insertion",
             "--bam",
             str(BAM),
             "--region",
@@ -475,8 +475,8 @@ def test_cli_rejects_missing_index(tmp_path: Path, capsys) -> None:
     shutil.copy(BAM, copy)
     code = main(
         [
-            "short",
-            "insertion-plot",
+            "plot",
+            "insertion",
             "--bam",
             str(copy),
             "--region",
@@ -494,8 +494,8 @@ def test_cli_rejects_missing_index(tmp_path: Path, capsys) -> None:
 def test_cli_rejects_unknown_reference(tmp_path: Path, capsys) -> None:
     code = main(
         [
-            "short",
-            "insertion-plot",
+            "plot",
+            "insertion",
             "--bam",
             str(BAM),
             "--region",

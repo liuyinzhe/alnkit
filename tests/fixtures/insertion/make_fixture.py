@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成 ``short insertion-plot`` 的合成 fixture（确定性，无时间戳）。
+"""生成 ``plot insertion`` 的合成 fixture（确定性，无时间戳）。
 
 全部是编造的序列与坐标（chr1 取 200 kb，断点都在 200 kb 以内），不含任何真实数据。
 

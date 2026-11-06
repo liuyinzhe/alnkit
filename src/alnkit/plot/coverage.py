@@ -1,4 +1,4 @@
-"""``short coverage`` 的绘图层：从两张表画覆盖广度 / 平均深度（可选基因轨道）。
+"""``plot coverage`` 的绘图层：从两张表画覆盖广度 / 平均深度（二代短读长，可选基因轨道）。
 
 输入是 :mod:`alnkit.shortread.coverage` 写出的 ``coverage_bins``（逐 bin）与
 ``coverage_region``（区域汇总）两张表；本模块只做“把表画出来”，不算深度。
@@ -558,7 +558,7 @@ def default_name(bam_path: str | Path, region: coverage_stats.Region, reference_
 
 @dataclass(frozen=True, slots=True)
 class CoverageSettings:
-    """一次 ``short coverage`` 的全部输入。
+    """一次 ``plot coverage`` 的全部输入。
 
     示例::
 
@@ -658,7 +658,7 @@ def run(settings: CoverageSettings) -> dict[str, Any]:
         f"require:{settings.require_flags or 'none'} "
         f"min_mapq:{settings.min_mapq} min_len:{settings.min_len} "
         f"min_depth:{settings.min_depth} max_depth:{settings.max_depth}",
-        "producer=alnkit short coverage",
+        "producer=alnkit plot coverage",
     )
     written = coverage_stats.write_coverage_tables(
         result,

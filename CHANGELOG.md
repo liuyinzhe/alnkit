@@ -3,7 +3,19 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 SemVer。
 条目按功能 ID（`A*` 三代 / `B*` 二代 / `C*` 绘图 / `D*` 公共层）分组，ID 定义见规划文档。
 
-## [0.6.0] - 2026-11-05
+## [Unreleased]
+
+### Changed（破坏性：命令改名）
+
+- 两个二代出图命令从 `short` 移到 `plot`，与其他静图命令放在一起：
+  `alnkit short insertion-plot` → **`alnkit plot insertion`**，
+  `alnkit short coverage` → **`alnkit plot coverage`**（0.6.0 刚发布，无兼容别名）。
+  输出文件与参数名不变，默认 `--name` 改为 `insertion`。
+- 命令说明里标注适用数据：`plot tracks` / `plot ribbon` **最初为三代长读长设计**
+  （一条 read 上多个比对片段、contig vs 参考）；`plot insertion` / `plot coverage`
+  面向**二代短读长比对**（soft clip 断点证据、覆盖广度/深度）。
+
+
 
 ### Added
 
