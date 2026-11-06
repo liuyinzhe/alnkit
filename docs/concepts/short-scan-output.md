@@ -177,7 +177,38 @@ insert_boundary_0based == insert_pos_1based
 - 干扰判定与过滤策略无关：`support_reads_*` 各项恒等于该位点的归属分布，
   `--insert-origin-policy` 只影响哪些 read 会被当作证据（见 §7）。
 
-## 7. 常见误读清单
+## 7. 归属策略：`--insert-origin-policy`（哪些 read 才算证据）
+
+一条 read 往往同时命中好几条序列（外源、内源同源、拼接旁系同源）。这个参数决定**哪些 read
+被当成“这个位点的证据”**，因此它直接改的是 `split_read_support` / `pair_split_read_support`
+（主表）与 `support_reads_*`（干扰表），注意它**不改**已保留 read 的坐标。
+
+判定顺序（`shortread/origin.py`）：先按“比对块长度 / 错配 / clip 长度”给每个插入序列打分，
+得分唯一 → 归属该插入；并列 → `ambiguous`；一个插入都没命中 → `no_insert_hit`。
+
+| 策略 | 保留谁 | 丢掉谁 | 什么时候用 |
+|---|---|---|---|
+| `owned`（默认） | 归属 **query** 的 read | 归属其它插入、`ambiguous`、`no_insert_hit` | 多外源面板的常规选择：只信“确定属于本外源”的证据 |
+| `owned-strict` | 同 `owned`，但再剔除“归属 query、却在**其它**插入上还有次要/XA 命中”的 read | 上面那些 + 共有 read | 外源之间高度相似（共享接头/载体）时，避免共有 read 把特异位点撑起来 |
+| `lenient` | `owned` + `ambiguous` | 只丢归属其它插入 / 无插入命中 | 判定过严导致支持数太低时的兜底；**不投票，最宽松** |
+| `consensus` | `owned` + 用**同断点投票**推定 `ambiguous` 的归属（附近 ±`--merge-window-bp` 内归属明确的 read 一致指向 query 才保留） | 投票为空或指向不一致的 ambiguous | 同源干扰严重、又不想丢证据时；比 `lenient` 保守（**推断不是测量**） |
+| `legacy` | **全部保留**（不做任何归属判定），并自动关闭候选 read 闸门 | 只有质量过滤（MAPQ / 错配 / clip 段数） | 复现旧脚本产物做逐字节对账；`--legacy-profile` 会隐含它 |
+
+几点容易踩的：
+
+- **`legacy` 不是“更宽松的 owned”**：它连“没命中任何插入序列的 read”都算证据，位点数会明显变多、
+  真位点的支持数反而可能变小（证据被摊到更多位点上）。实测一份 PE 数据：
+  `owned` 11 个位点、真位点 SR=125；`legacy` 25 个位点、真位点 SR=87。
+- **`owned-strict` 只看“其它插入”**：query 自己的次要命中不算（那是正常形态），所以单外源面板下
+  它与 `owned` 完全等价。
+- **四种非 legacy 策略可能完全一样**：同一份数据（两条互不同源的外源）上，
+  `owned` / `owned-strict` / `lenient` / `consensus` 产出的三张 legacy 表**逐字节相同**，
+  只有 `legacy` 不同 —— 因为这份数据里没有 `ambiguous`、也没有跨外源的共有 read。
+  它们的分歧**只在**“存在 ambiguous 或共有 read”时才出现。
+- 策略只影响“哪些 read 算证据”，不影响干扰表的判定口径（那张表见 §6；它的 `interference_scope`
+  是另一个旋钮）。
+
+## 8. 常见误读清单
 
 | 误读 | 实际 |
 |---|---|
@@ -189,7 +220,7 @@ insert_boundary_0based == insert_pos_1based
 | `Insert_Position` 的数字是 1-based 还是 0-based | 两者数值相同（“断点左侧碱基的 1-based 坐标”＝“0-based 边界”），要明确基准请看 `sites.canonical.tsv` |
 | minimap2 的结果和 bwa 等价 | 不等价：minimap2 默认**不写 XA 标签**，归属判定只剩 secondary，支持数会明显下降；二代链路请用 `bwa mem -Y`（**不要** `-M`） |
 
-## 8. 怎么定 `--merge-window-bp`（实测方法，别猜）
+## 9. 怎么定 `--merge-window-bp`（实测方法，别猜）
 
 **默认值是 0**（不合并，历史产物逐字节不变）。要不要合并、合多少，用下面三行在自己的数据上扫一遍：
 
@@ -229,7 +260,7 @@ cut -f1,2,3,4 out_w*/w*.Insert_Position.result.xls    # 比位点数与支持数
 3. 反过来别用几十到几百 bp：同一位座两侧的两个连接点通常相距几十~几百 bp，并掉就只剩一行，
    **结构信息永久丢失**。降噪请用 `--min-sr-support`，不要用窗口。
 
-## 9. 自查：我的表跑对了吗
+## 10. 自查：我的表跑对了吗
 
 ```bash
 alnkit short scan --bam sampleA.markdup.bam --query-chr insertA \

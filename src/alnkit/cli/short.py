@@ -116,7 +116,15 @@ def _add_scan(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -
         action="store",
         choices=("owned", "owned-strict", "lenient", "consensus", "legacy"),
         default="owned",
-        help="共有 read 的区分策略：owned（默认）/owned-strict/lenient/consensus/legacy",
+        help=(
+            "哪些 read 算这个位点的证据（不改坐标，只改支持数）："
+            "owned=只留归属 query 的（默认）；"
+            "owned-strict=再去掉在其它插入上还有次要命中的共有 read；"
+            "lenient=owned + 保留归属不明确的（不投票，最宽松）；"
+            "consensus=owned + 用同断点投票推定不明确的 read 的归属；"
+            "legacy=全部保留、不做归属判定（复现旧脚本用，位点会明显变多）。"
+            "详见 docs/concepts/short-scan-output.md §7"
+        ),
     )
     parser.add_argument(
         "--merge-window-bp",
